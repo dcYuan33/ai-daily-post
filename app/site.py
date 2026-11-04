@@ -196,7 +196,7 @@ def _archive_content(reports: list[DailyReport], prefix: str) -> str:
 
 
 def rebuild_site(root: Path) -> Path:
-    """Rebuild existing issues without collecting news, calling AI, or notifying Telegram."""
+    """Rebuild existing issues without collecting news or calling AI."""
     site_root = root / "site"
     (site_root / "assets").mkdir(parents=True, exist_ok=True)
     for name, destination in (("site.css", "style.css"), ("site.js", "site.js")):

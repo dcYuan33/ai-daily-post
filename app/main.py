@@ -24,7 +24,6 @@ def main() -> int:
     args = parser.parse_args()
     from .collect import collect_candidates
     from .llm import generate_report
-    from .notify import report_telegram_summary, send_telegram
     from .render import save_report
     from .site import build_site
 
@@ -39,11 +38,6 @@ def main() -> int:
     markdown_path, html_path = save_report(report, settings.root)
     build_site(report, settings.root)
     logger.info("Saved %s and %s", markdown_path, html_path)
-
-    site_url = os.getenv("SITE_URL", "").rstrip("/")
-    issue_url = f"{site_url}/issues/{report.report_date}/" if site_url else ""
-    send_telegram(settings, report_telegram_summary(report, issue_url))
-    logger.info("Sent report summary to Telegram")
 
     return 0
 

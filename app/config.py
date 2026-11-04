@@ -16,8 +16,6 @@ class Settings:
     ai_api_key: str
     ai_base_url: str
     ai_model: str
-    telegram_bot_token: str
-    telegram_chat_id: str
     sources_config: Path
     prompt_file: Path
 
@@ -34,8 +32,6 @@ def load_settings() -> Settings:
         ai_api_key=os.getenv("AI_API_KEY", ""),
         ai_base_url=os.getenv("AI_BASE_URL", "https://api.openai.com/v1").rstrip("/"),
         ai_model=os.getenv("AI_MODEL", ""),
-        telegram_bot_token=os.getenv("TELEGRAM_BOT_TOKEN", ""),
-        telegram_chat_id=os.getenv("TELEGRAM_CHAT_ID", ""),
         sources_config=_path(os.getenv("SOURCES_CONFIG", "config/sources.yaml"), "config/sources.yaml"),
         prompt_file=_path(os.getenv("PROMPT_FILE", "prompts/ai-daily.md"), "prompts/ai-daily.md"),
     )

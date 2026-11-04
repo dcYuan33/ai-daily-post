@@ -1,7 +1,7 @@
 [project]
 name = "ai-daily-briefing"
 version = "0.1.0"
-description = "Daily AI briefing with Telegram summary and GitHub Pages publishing"
+description = "Daily AI briefing published with GitHub Pages"
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [

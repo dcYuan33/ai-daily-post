@@ -1,8 +1,8 @@
 # AI Daily Post
 
-无服务器的 AI 日报：由 GitHub Actions 每天运行，使用 `ai-weekly-briefing` 的 A/B/C 信源规则，Telegram 发送摘要，并通过 GitHub Pages 展示完整日报。
+无服务器的 AI 日报：由 GitHub Actions 每天运行，使用 `ai-weekly-briefing` 的 A/B/C 信源规则，并通过 GitHub Pages 展示完整日报。
 
-最终交付方式是：**Telegram 只接收摘要，GitHub Pages 展示完整内容**。
+最终交付方式是：**GitHub Pages 展示完整日报**。
 
 ## 功能
 
@@ -10,7 +10,6 @@
 - A/B/C 信源配置集中在 `config/sources.yaml`；
 - RSS 优先，网页栏目作为候选，文章原文作为核验输入；
 - 生成 Markdown 和 HTML；
-- Telegram：发送自己的日报摘要和 GitHub Pages 完整日报链接；
 - GitHub Pages：提供类似 Juya Daily 的阅读器布局：首页直接展示最新完整日报，左侧日期归档、全文搜索、目录、阅读进度和多种阅读主题；
 - Python 使用 `uv` 管理；
 - GitHub Actions 手动运行时可以指定 `report_date`。
@@ -24,14 +23,12 @@
 AI_API_KEY
 AI_BASE_URL       # 例如 https://api.openai.com/v1
 AI_MODEL
-TELEGRAM_BOT_TOKEN
-TELEGRAM_CHAT_ID
 ```
 
 3. 在 Repository Settings → Pages 中将部署方式设置为 **GitHub Actions**（第一次运行 Workflow 后也可以在这里确认）。
-4. 先使用 `workflow_dispatch` 手动运行，填写 `report_date`，确认 Telegram 和 Pages 后再等待定时任务。
+4. 先使用 `workflow_dispatch` 手动运行，填写 `report_date`，确认 Pages 后再等待定时任务。
 
-如果只修改了页面样式、不希望重新采集新闻或重复发送 Telegram，可以在 `workflow_dispatch` 中勾选 `site_only`。它只会读取仓库里已经保存的 `site/issues/*/data.json`，重新生成并部署 GitHub Pages。
+如果只修改了页面样式、不希望重新采集新闻，可以在 `workflow_dispatch` 中勾选 `site_only`。它只会读取仓库里已经保存的 `site/issues/*/data.json`，重新生成并部署 GitHub Pages。
 
 ## 本地运行
 
@@ -67,7 +64,7 @@ uv run python -m http.server 8000 --directory site
 - 文章请求预算为 120 条，按信源轮询分配，避免前几个信源占满预算；单篇输入摘录限制为 3000 字符以控制 AI 输入规模。
 - 日志显示各信源候选数、请求失败、目标日日期数量、正文可用数量和最终日报条数。
 
-Actions 列表中的 `Deploy Pages · existing reports only` 只重新部署已有内容，不生成新日期的日报；`Generate AI daily report` 才会采集、生成、发送 Telegram 并部署新日报。即使当天确实没有可靠新闻，完整生成流程也会发布该日期的空日报，而不是停留在旧日期。
+Actions 列表中的 `Deploy Pages · existing reports only` 只重新部署已有内容，不生成新日期的日报；`Generate AI daily report` 才会采集、生成并部署新日报。即使当天确实没有可靠新闻，完整生成流程也会发布该日期的空日报，而不是停留在旧日期。
 
 ## 运行时间和日期窗口
 
@@ -90,5 +87,4 @@ GitHub Pages 使用 Actions 构建并部署 `site/`。每次日报生成后，Wo
 1. 生成 Markdown、HTML 和 Pages 静态文件；
 2. 将 `reports/` 和 `site/` 提交回仓库；
 3. 上传 `site/` 为 Pages artifact；
-4. 部署到 GitHub Pages；
-5. Telegram 消息附带当天详情页链接。
+4. 部署到 GitHub Pages。

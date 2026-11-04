@@ -12,7 +12,7 @@ on:
         required: false
         type: string
       site_only:
-        description: "Only rebuild and deploy GitHub Pages; do not collect news or send Telegram"
+        description: "Only rebuild and deploy GitHub Pages; do not collect news"
         required: false
         type: boolean
         default: false
@@ -55,11 +55,8 @@ jobs:
           AI_API_KEY: ${{ secrets.AI_API_KEY }}
           AI_BASE_URL: ${{ secrets.AI_BASE_URL }}
           AI_MODEL: ${{ secrets.AI_MODEL }}
-          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
-          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
           REPORT_TIMEZONE: Asia/Shanghai
           REPORT_DATE: ${{ inputs.report_date }}
-          SITE_URL: https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}
         run: uv run --locked python -m app
 
       - name: Rebuild site only

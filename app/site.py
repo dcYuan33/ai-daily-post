@@ -6,13 +6,20 @@ import logging
 import math
 from collections import OrderedDict
 from dataclasses import asdict
-from datetime import date, datetime
+from datetime import date, datetime, time, timezone
+from email.utils import format_datetime
 from pathlib import Path
 from urllib.parse import urlsplit
+from zoneinfo import ZoneInfo
 
 from .models import DailyReport, ReportItem
 
 ASSETS = Path(__file__).parent / "assets"
+SITE_URL = "https://dcyuan33.github.io/ai-daily-post/"
+SITE_TITLE = "AI 日报 · AI Daily Post"
+SITE_DESCRIPTION = "每日 AI 资讯精选，基于 A/B/C 信源整理，保留原始来源。"
+REPORT_TIMEZONE = ZoneInfo("Asia/Shanghai")
+FEED_LIMIT = 50
 MONTHS = ("January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December")
 THEMES = (("editorial", "经典", "#faf8f5", "#c44b2b"), ("mono", "极简", "#ffffff", "#111111"), ("dune", "沙丘", "#faf6f0", "#b57b31"), ("blueprint", "蓝图", "#f8faff", "#2563eb"), ("ink", "墨夜", "#191714", "#ee8866"))
 ICONS = {
@@ -26,6 +33,7 @@ ICONS = {
     "up": '<path d="m6 14 6-6 6 6"/>',
     "external": '<path d="M14 3h7v7m0-7L10 14M10 3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-5"/>',
     "book": '<path d="M12 6c-3-3-7-3-10-2v15c3-1 7-1 10 2 3-3 7-3 10-2V4c-3-1-7-1-10 2Zm0 0v15"/>',
+    "rss": '<path d="M4 11a9 9 0 0 1 9 9M4 4a16 16 0 0 1 16 16"/><circle cx="5" cy="19" r="1"/>',
 }
 
 
@@ -102,6 +110,7 @@ def _page(title: str, content: str, reports: list[DailyReport], prefix: str = ".
 <meta name="color-scheme" content="light dark"><title>{_e(title)}</title>
 <script>try{{const t=localStorage.getItem('ai-daily-theme');if(['editorial','mono','dune','blueprint','ink'].includes(t))document.documentElement.dataset.theme=t;}}catch(e){{}}</script>
 <link rel="stylesheet" href="{prefix}assets/style.css"><script defer src="{prefix}assets/site.js"></script>
+<link rel="alternate" type="application/rss+xml" title="AI 日报 RSS" href="{SITE_URL}feed.xml">
 </head><body data-site-root="{prefix}">
 <a class="skip-link" href="#main">跳到正文</a>
 <header class="site-header"><div class="header-inner">
@@ -110,6 +119,7 @@ def _page(title: str, content: str, reports: list[DailyReport], prefix: str = ".
 <span class="header-note">世界变化很快，读点重要的。</span>
 <div class="header-actions"><button class="icon-button copy-button" data-copy-link aria-label="复制本期链接">{_icon('link')}</button>
 <details class="theme-picker"><summary class="icon-button" aria-label="切换阅读主题">{_icon('sun')}</summary><div class="theme-menu"><p>阅读主题</p>{theme_options}</div></details>
+<a class="icon-button repo-link" href="{prefix}feed.xml" aria-label="RSS 订阅" title="RSS 订阅">{_icon('rss')}</a>
 <a class="icon-button repo-link" href="https://github.com/dcYuan33/AI_Daily_Post" target="_blank" rel="noopener noreferrer" aria-label="GitHub 仓库">{_icon('external')}</a></div>
 </div><div class="reading-progress" data-reading-progress></div></header>
 <div class="sidebar-backdrop" data-close-archive hidden></div>
@@ -195,6 +205,77 @@ def _archive_content(reports: list[DailyReport], prefix: str) -> str:
         <div class="archive-list">{"".join(entries) or '<p class="empty-note">第一期日报尚未生成。</p>'}<p class="empty-note" data-list-empty hidden>没有找到匹配的日报，试试其他关键词。</p></div></div>'''
 
 
+def _xml(value: str) -> str:
+    text = "".join(ch for ch in str(value) if ch in "\t\n\r" or "\x20" <= ch <= "\ud7ff" or "\ue000" <= ch <= "\ufffd" or ch >= "\U00010000")
+    return html.escape(text, quote=True)
+
+
+def _cdata(value: str) -> str:
+    return "<![CDATA[" + value.replace("]]>", "]]]]><![CDATA[>") + "]]>"
+
+
+def _feed_datetime(report: DailyReport) -> datetime:
+    try:
+        generated = datetime.fromisoformat(report.generated_at)
+    except (TypeError, ValueError):
+        generated = datetime.combine(date.fromisoformat(report.report_date), time(9, 17))
+    return generated.replace(tzinfo=REPORT_TIMEZONE) if generated.tzinfo is None else generated
+
+
+def _feed_issue_html(report: DailyReport) -> str:
+    issue_url = f"{SITE_URL}issues/{report.report_date}/"
+    blocks = [f'<p>{_e(report.title)} · {len(report.items)} 条精选</p>']
+    for index, item in enumerate(report.items, 1):
+        sources = " ".join(
+            f'<a href="{_e(source["url"])}">{_e(source["tier"])} · {_e(source["name"])}</a>'
+            for source in item.sources if _safe_url(source["url"])
+        )
+        summary = "".join(f"<p>{_e(line)}</p>" for line in item.summary.splitlines() if line.strip())
+        comment = "".join(f"<p>{_e(line)}</p>" for line in item.comment.splitlines() if line.strip())
+        comment = f"<blockquote><strong>简评</strong>{comment}</blockquote>" if comment else ""
+        source_line = f'<p class="sources">来源：{sources}</p>' if sources else ""
+        blocks.append(f'''<h2><a href="{_e(issue_url)}#item-{index}">{_e(item.title)}</a></h2>
+<p><em>{_e(item.category)} · {_e(item.time)}</em></p>{summary}{comment}{source_line}''')
+    return "".join(blocks)
+
+
+def _feed_description(report: DailyReport) -> str:
+    titles = [item.title for item in report.items[:3]]
+    if not titles:
+        return "本期暂未发现足够可靠的重要 AI 新进展。"
+    suffix = " 等。" if len(report.items) > 3 else "。"
+    return f"本期收录 {len(report.items)} 条：" + "；".join(titles) + suffix
+
+
+def _feed_xml(reports: list[DailyReport]) -> str:
+    entries = []
+    for report in reports[:FEED_LIMIT]:
+        issue_url = f"{SITE_URL}issues/{report.report_date}/"
+        entries.append(f'''<item>
+<title>{_xml(report.title)}</title>
+<link>{_xml(issue_url)}</link>
+<guid isPermaLink="true">{_xml(issue_url)}</guid>
+<pubDate>{format_datetime(_feed_datetime(report))}</pubDate>
+<description>{_xml(_feed_description(report))}</description>
+<content:encoded>{_cdata(_feed_issue_html(report))}</content:encoded>
+</item>''')
+    last_build = format_datetime(_feed_datetime(reports[0])) if reports else format_datetime(datetime.now(timezone.utc))
+    return f'''<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom" xmlns:content="http://purl.org/rss/1.0/modules/content/">
+<channel>
+<title>{_xml(SITE_TITLE)}</title>
+<link>{SITE_URL}</link>
+<description>{_xml(SITE_DESCRIPTION)}</description>
+<language>zh-CN</language>
+<lastBuildDate>{last_build}</lastBuildDate>
+<generator>ai-daily-post</generator>
+<atom:link href="{SITE_URL}feed.xml" rel="self" type="application/rss+xml"/>
+{"".join(entries)}
+</channel>
+</rss>
+'''
+
+
 def rebuild_site(root: Path) -> Path:
     """Rebuild existing issues without collecting news or calling AI."""
     site_root = root / "site"
@@ -205,6 +286,7 @@ def rebuild_site(root: Path) -> Path:
     home = _reader(reports[0], reports, "./") if reports else '<div class="reading-shell"><header class="issue-header"><div class="issue-dateline">AI DAILY POST</div><h1 class="archive-title">下一份灵感，<br>即将抵达。</h1><p class="issue-subtitle">第一期 AI 日报将在生成后出现在这里。</p></header></div>'
     (site_root / "index.html").write_text(_page("AI 日报 · AI Daily Post", home, reports, current=reports[0].report_date if reports else ""), encoding="utf-8")
     (site_root / "archive.html").write_text(_page("日报归档 · AI Daily Post", _archive_content(reports, "./"), reports, archive=True), encoding="utf-8")
+    (site_root / "feed.xml").write_text(_feed_xml(reports), encoding="utf-8")
     for report in reports:
         content = _reader(report, reports, "../../")
         (site_root / "issues" / report.report_date / "index.html").write_text(_page(report.title, content, reports, "../../", report.report_date), encoding="utf-8")

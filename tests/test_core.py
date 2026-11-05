@@ -1,6 +1,7 @@
 import json
 import tempfile
 import unittest
+import xml.etree.ElementTree as ET
 from datetime import date
 from pathlib import Path
 from zoneinfo import ZoneInfo
@@ -80,6 +81,36 @@ class CoreTests(unittest.TestCase):
             self.assertIn("&lt;script&gt;alert(1)&lt;/script&gt;", page)
             self.assertNotIn("javascript:alert(1)", page)
             self.assertIn("https://example.com", page)
+
+    def test_build_site_writes_rss_feed(self):
+        report = DailyReport(
+            "AI 日报｜2026-10-06", "2026-10-06", "2026-10-07T09:17:00+08:00",
+            [ReportItem(
+                title="测试新闻", time="2026-10-06", category="模型与研究",
+                summary="这是测试摘要。", comment="这是简评。",
+                sources=[
+                    {"name": "安全来源", "tier": "A", "url": "https://example.com/news"},
+                    {"name": "恶意", "tier": "B", "url": "javascript:alert(1)"},
+                ],
+            )],
+        )
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            build_site(report, root)
+            feed = (root / "site/feed.xml").read_text(encoding="utf-8")
+            channel = ET.fromstring(feed).find("channel")
+            self.assertEqual(channel.findtext("title"), "AI 日报 · AI Daily Post")
+            self.assertEqual(channel.find("{http://www.w3.org/2005/Atom}link").get("rel"), "self")
+            item = channel.find("item")
+            self.assertEqual(item.findtext("title"), "AI 日报｜2026-10-06")
+            self.assertEqual(item.findtext("link"), "https://dcyuan33.github.io/ai-daily-post/issues/2026-10-06/")
+            self.assertEqual(item.findtext("pubDate"), "Wed, 07 Oct 2026 09:17:00 +0800")
+            content = item.findtext("{http://purl.org/rss/1.0/modules/content/}encoded")
+            self.assertIn("测试新闻", content)
+            self.assertIn("https://dcyuan33.github.io/ai-daily-post/issues/2026-10-06/#item-1", content)
+            self.assertIn("https://example.com/news", content)
+            self.assertNotIn("javascript:alert(1)", feed)
+            self.assertIn('rel="alternate" type="application/rss+xml"', (root / "site/index.html").read_text(encoding="utf-8"))
 
     def test_rebuild_site_preserves_multiple_issue_archive(self):
         first = DailyReport("AI 日报｜2026-10-06", "2026-10-06", "now", [])

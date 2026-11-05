@@ -11,6 +11,8 @@
 - RSS 优先，网页栏目作为候选，文章原文作为核验输入；
 - 生成 Markdown 和 HTML；
 - GitHub Pages：提供类似 Juya Daily 的阅读器布局：首页直接展示最新完整日报，左侧日期归档、全文搜索、目录、阅读进度和多种阅读主题；
+
+- RSS 订阅：`site/feed.xml` 输出最近 50 期日报全文，并支持阅读器自动发现；
 - Python 使用 `uv` 管理；
 - GitHub Actions 手动运行时可以指定 `report_date`。
 
@@ -76,11 +78,14 @@ Actions 列表中的 `Deploy Pages · existing reports only` 只重新部署已�
 site/
 ├── index.html                 首页和最新日报
 ├── archive.html               全部日报归档
+├── feed.xml                   RSS 订阅源
 ├── assets/style.css           页面样式
 └── issues/YYYY-MM-DD/
     ├── index.html             单期日报详情页
     └── data.json              用于重新构建归档和导航的数据
 ```
+
+RSS 地址：<https://dcyuan33.github.io/ai-daily-post/feed.xml>
 
 GitHub Pages 使用 Actions 构建并部署 `site/`。每次日报生成后，Workflow 会：
 

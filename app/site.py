@@ -4,6 +4,7 @@ import html
 import json
 import logging
 import math
+import shutil
 from collections import OrderedDict
 from dataclasses import asdict
 from datetime import date, datetime, time, timezone
@@ -109,14 +110,25 @@ def _page(title: str, content: str, reports: list[DailyReport], prefix: str = ".
 <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="description" content="{_e(SITE_DESCRIPTION)}">
 <meta name="color-scheme" content="light dark"><title>{_e(title)}</title>
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="AI Daily Post">
+<meta property="og:title" content="{_e(title)}">
+<meta property="og:description" content="{_e(SITE_DESCRIPTION)}">
+<meta property="og:image" content="{SITE_URL}assets/logo.png">
+<meta name="twitter:card" content="summary">
 <script>try{{const t=localStorage.getItem('ai-daily-theme');if(['editorial','mono','dune','blueprint','ink'].includes(t))document.documentElement.dataset.theme=t;}}catch(e){{}}</script>
 <link rel="stylesheet" href="{prefix}assets/style.css"><script defer src="{prefix}assets/site.js"></script>
+<link rel="icon" href="{prefix}assets/favicon.ico" sizes="any">
+<link rel="icon" type="image/png" sizes="32x32" href="{prefix}assets/favicon-32.png">
+<link rel="icon" type="image/png" sizes="16x16" href="{prefix}assets/favicon-16.png">
+<link rel="apple-touch-icon" href="{prefix}assets/apple-touch-icon.png">
+<meta name="theme-color" content="#ff5a0a">
 <link rel="alternate" type="application/rss+xml" title="AI Daily Post RSS" href="{SITE_URL}feed.xml">
 </head><body data-site-root="{prefix}">
 <a class="skip-link" href="#main">Skip to content</a>
 <header class="site-header"><div class="header-inner">
 <button class="icon-button mobile-only" data-open-archive aria-controls="archive-sidebar" aria-expanded="false" aria-label="Open issue archive">{_icon('menu')}</button>
-<a class="brand" href="{prefix}index.html"><span class="brand-symbol" aria-hidden="true">a<span>i</span></span><span>AI DAILY POST</span></a>
+<a class="brand" href="{prefix}index.html"><img class="brand-logo" src="{prefix}assets/logo.png" alt="" width="34" height="34"><span>AI DAILY POST</span></a>
 <div class="header-actions"><button class="icon-button copy-button" data-copy-link aria-label="Copy link to this issue">{_icon('link')}</button>
 <details class="theme-picker"><summary class="icon-button" aria-label="Change reading theme">{_icon('sun')}</summary><div class="theme-menu"><p>Reading theme</p>{theme_options}</div></details>
 <a class="icon-button repo-link" href="{prefix}feed.xml" aria-label="RSS feed" title="RSS feed">{_icon('rss')}</a>
@@ -257,6 +269,11 @@ def _feed_xml(reports: list[DailyReport]) -> str:
 <title>{_xml(SITE_TITLE)}</title>
 <link>{SITE_URL}</link>
 <description>{_xml(SITE_DESCRIPTION)}</description>
+<image>
+<url>{_xml(SITE_URL + "assets/logo.png")}</url>
+<title>{_xml(SITE_TITLE)}</title>
+<link>{SITE_URL}</link>
+</image>
 <language>en</language>
 <lastBuildDate>{last_build}</lastBuildDate>
 <generator>ai-daily-post</generator>
@@ -271,8 +288,16 @@ def rebuild_site(root: Path) -> Path:
     """Rebuild existing issues without collecting news or calling AI."""
     site_root = root / "site"
     (site_root / "assets").mkdir(parents=True, exist_ok=True)
-    for name, destination in (("site.css", "style.css"), ("site.js", "site.js")):
-        (site_root / "assets" / destination).write_text((ASSETS / name).read_text(encoding="utf-8"), encoding="utf-8")
+    for name, destination in (
+        ("site.css", "style.css"),
+        ("site.js", "site.js"),
+        ("logo.png", "logo.png"),
+        ("favicon.ico", "favicon.ico"),
+        ("favicon-16.png", "favicon-16.png"),
+        ("favicon-32.png", "favicon-32.png"),
+        ("apple-touch-icon.png", "apple-touch-icon.png"),
+    ):
+        shutil.copyfile(ASSETS / name, site_root / "assets" / destination)
     reports = _load_reports(site_root)
     home = _reader(reports[0], reports, "./") if reports else '<div class="reading-shell"><header class="issue-header"><div class="issue-dateline">AI DAILY POST</div><h1 class="archive-title">No issues yet.</h1><p class="issue-subtitle">The first issue will appear here once it is generated.</p></header></div>'
     (site_root / "index.html").write_text(_page("AI Daily Post", home, reports, current=reports[0].report_date if reports else ""), encoding="utf-8")
@@ -289,7 +314,7 @@ def rebuild_site(root: Path) -> Path:
     # project root before the browser resolves relative URLs against that path.
     asset_loader = """<script>(function(){const parts=location.pathname.split('/');const root=location.hostname.endsWith('.github.io')&&parts[1]?'/'+parts[1]+'/':'/';document.write('<link rel=\"stylesheet\" href=\"'+root+'assets/style.css\"><script defer src=\"'+root+'assets/site.js\"><\\/script>');})();</script>"""
     not_found = not_found.replace('<link rel="stylesheet" href="./assets/style.css"><script defer src="./assets/site.js"></script>', asset_loader)
-    root_script = """<script>(function(){const parts=location.pathname.split('/');const root=location.hostname.endsWith('.github.io')&&parts[1]?'/'+parts[1]+'/':'/';document.body.dataset.siteRoot=root;document.querySelectorAll('a[href^=\"./\"]').forEach(a=>a.href=root+a.getAttribute('href').slice(2));})();</script>"""
+    root_script = """<script>(function(){const parts=location.pathname.split('/');const root=location.hostname.endsWith('.github.io')&&parts[1]?'/'+parts[1]+'/':'/';document.body.dataset.siteRoot=root;document.querySelectorAll('a[href^=\"./\"]').forEach(a=>a.href=root+a.getAttribute('href').slice(2));document.querySelectorAll('link[rel=\"icon\"],link[rel=\"apple-touch-icon\"]').forEach(l=>{const href=l.getAttribute('href');if(href&&href.startsWith('./'))l.href=root+href.slice(2);});})();</script>"""
     (site_root / "404.html").write_text(not_found.replace("</body>", root_script + "</body>"), encoding="utf-8")
     (site_root / ".nojekyll").touch()
     return site_root

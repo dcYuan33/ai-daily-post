@@ -270,10 +270,15 @@ def _feed_xml(reports: list[DailyReport]) -> str:
 <link>{SITE_URL}</link>
 <description>{_xml(SITE_DESCRIPTION)}</description>
 <image>
-<url>{_xml(SITE_URL + "assets/logo.png")}</url>
+<url>{_xml(SITE_URL + "assets/feed-logo-144.png")}</url>
 <title>{_xml(SITE_TITLE)}</title>
 <link>{SITE_URL}</link>
+<width>144</width>
+<height>144</height>
+<description>{_xml(SITE_DESCRIPTION)}</description>
 </image>
+<atom:icon>{_xml(SITE_URL + "assets/favicon-32.png")}</atom:icon>
+<atom:logo>{_xml(SITE_URL + "assets/logo.png")}</atom:logo>
 <language>en</language>
 <lastBuildDate>{last_build}</lastBuildDate>
 <generator>ai-daily-post</generator>
@@ -292,6 +297,7 @@ def rebuild_site(root: Path) -> Path:
         ("site.css", "style.css"),
         ("site.js", "site.js"),
         ("logo.png", "logo.png"),
+        ("feed-logo-144.png", "feed-logo-144.png"),
         ("favicon.ico", "favicon.ico"),
         ("favicon-16.png", "favicon-16.png"),
         ("favicon-32.png", "favicon-32.png"),

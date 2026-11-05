@@ -5,10 +5,15 @@
 <link>https://dcyuan33.github.io/ai-daily-post/</link>
 <description>Daily AI news curated from A/B/C sources, with links to the original reporting.</description>
 <image>
-<url>https://dcyuan33.github.io/ai-daily-post/assets/logo.png</url>
+<url>https://dcyuan33.github.io/ai-daily-post/assets/feed-logo-144.png</url>
 <title>AI Daily Post</title>
 <link>https://dcyuan33.github.io/ai-daily-post/</link>
+<width>144</width>
+<height>144</height>
+<description>Daily AI news curated from A/B/C sources, with links to the original reporting.</description>
 </image>
+<atom:icon>https://dcyuan33.github.io/ai-daily-post/assets/favicon-32.png</atom:icon>
+<atom:logo>https://dcyuan33.github.io/ai-daily-post/assets/logo.png</atom:logo>
 <language>en</language>
 <lastBuildDate>Thu, 05 Nov 2026 15:57:35 +0800</lastBuildDate>
 <generator>ai-daily-post</generator>

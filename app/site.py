@@ -12,16 +12,17 @@ from pathlib import Path
 from urllib.parse import urlsplit
 from zoneinfo import ZoneInfo
 
+from .labels import WEEKDAYS, WEEKDAY_ABBR, category_label
 from .models import DailyReport, ReportItem
 
 ASSETS = Path(__file__).parent / "assets"
 SITE_URL = "https://dcyuan33.github.io/ai-daily-post/"
-SITE_TITLE = "AI 日报 · AI Daily Post"
-SITE_DESCRIPTION = "每日 AI 资讯精选，基于 A/B/C 信源整理，保留原始来源。"
+SITE_TITLE = "AI Daily Post"
+SITE_DESCRIPTION = "Daily AI news curated from A/B/C sources, with links to the original reporting."
 REPORT_TIMEZONE = ZoneInfo("Asia/Shanghai")
 FEED_LIMIT = 50
 MONTHS = ("January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December")
-THEMES = (("editorial", "经典", "#faf8f5", "#c44b2b"), ("mono", "极简", "#ffffff", "#111111"), ("dune", "沙丘", "#faf6f0", "#b57b31"), ("blueprint", "蓝图", "#f8faff", "#2563eb"), ("ink", "墨夜", "#191714", "#ee8866"))
+THEMES = (("editorial", "Classic", "#faf8f5", "#c44b2b"), ("mono", "Minimal", "#ffffff", "#111111"), ("dune", "Dune", "#faf6f0", "#b57b31"), ("blueprint", "Blueprint", "#f8faff", "#2563eb"), ("ink", "Ink", "#191714", "#ee8866"))
 ICONS = {
     "menu": '<path d="M4 6h16M4 12h16M4 18h16"/>',
     "close": '<path d="m6 6 12 12M18 6 6 18"/>',
@@ -84,43 +85,42 @@ def _sidebar(reports: list[DailyReport], prefix: str, current: str, archive: boo
         links = []
         for report in issues:
             day = date.fromisoformat(report.report_date)
-            weekday = "一二三四五六日"[day.weekday()]
             active = report.report_date == current and not archive
             latest = report is reports[0]
-            searchable = " ".join([report.report_date, report.title] + [item.title + " " + item.summary for item in report.items])
+            searchable = " ".join([report.report_date] + [item.title + " " + item.summary for item in report.items])
             links.append(f'''<a class="date-entry{' active' if active else ''}" href="{prefix}issues/{report.report_date}/" data-date-entry data-search-text="{_e(searchable)}"{' aria-current="page"' if active else ''}>
-                <div class="date-entry-top"><time datetime="{report.report_date}">{day:%m.%d}</time><span>周{weekday}</span>{'<i class="latest-dot" title="最新一期"></i>' if latest else ''}</div>
-                <div class="date-entry-bottom"><span>{len(report.items)} 条资讯</span><span class="entry-arrow">↗</span></div></a>''')
-        groups.append(f'<section class="date-group"><h3>{month[:4]} 年 {int(month[5:])} 月</h3>{"".join(links)}</section>')
-    return f'''<aside class="sidebar" id="archive-sidebar" aria-label="日报归档">
-        <div class="sidebar-heading"><span>{_icon('calendar')} 日报归档</span><button class="icon-button mobile-only" data-close-archive aria-label="关闭归档">{_icon('close')}</button></div>
-        <label class="sidebar-search">{_icon('search')}<input type="search" data-archive-search placeholder="搜索日期或关键词" aria-label="搜索日期或关键词" autocomplete="off"></label>
-        <div class="date-list">{"".join(groups) or '<p class="sidebar-empty">等待第一期日报</p>'}<p class="sidebar-empty" data-search-empty hidden>没有找到匹配的日报</p></div>
-        <a class="all-issues{' active' if archive else ''}" href="{prefix}archive.html">全部归档 <span>{len(reports)}</span></a>
-        <div class="sidebar-footer"><span class="live-dot"></span> 每日更新 · UTC+8<br><small>A / B / C 信源 · AI 辅助整理</small></div>
+                <div class="date-entry-top"><time datetime="{report.report_date}">{day:%m.%d}</time><span>{WEEKDAY_ABBR[day.weekday()]}</span>{'<i class="latest-dot" title="Latest issue"></i>' if latest else ''}</div>
+                <div class="date-entry-bottom"><span>{len(report.items)} stories</span><span class="entry-arrow">↗</span></div></a>''')
+        month_name = f"{MONTHS[int(month[5:]) - 1]} {month[:4]}"
+        groups.append(f'<section class="date-group"><h3>{month_name}</h3>{"".join(links)}</section>')
+    return f'''<aside class="sidebar" id="archive-sidebar" aria-label="Issue archive">
+        <div class="sidebar-heading"><span>{_icon('calendar')} Archive</span><button class="icon-button mobile-only" data-close-archive aria-label="Close archive">{_icon('close')}</button></div>
+        <label class="sidebar-search">{_icon('search')}<input type="search" data-archive-search placeholder="Search dates or keywords" aria-label="Search dates or keywords" autocomplete="off"></label>
+        <div class="date-list">{"".join(groups) or '<p class="sidebar-empty">Waiting for the first issue</p>'}<p class="sidebar-empty" data-search-empty hidden>No matching issues</p></div>
+        <a class="all-issues{' active' if archive else ''}" href="{prefix}archive.html">All issues <span>{len(reports)}</span></a>
+        <div class="sidebar-footer"><span class="live-dot"></span> Updated daily · UTC+8<br><small>A/B/C sources · AI-curated</small></div>
     </aside>'''
 
 
 def _page(title: str, content: str, reports: list[DailyReport], prefix: str = "./", current: str = "", archive: bool = False) -> str:
     theme_options = "".join(f'<button type="button" data-set-theme="{key}" aria-pressed="false"><span class="theme-swatch" style="--swatch-bg:{bg};--swatch-accent:{accent}"></span>{name}<span class="theme-check">✓</span></button>' for key, name, bg, accent in THEMES)
     return f'''<!doctype html>
-<html lang="zh-CN" data-theme="editorial"><head>
+<html lang="en" data-theme="editorial"><head>
 <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
-<meta name="description" content="每日 AI 资讯精选，基于 A/B/C 信源整理，保留原始来源。">
+<meta name="description" content="{_e(SITE_DESCRIPTION)}">
 <meta name="color-scheme" content="light dark"><title>{_e(title)}</title>
 <script>try{{const t=localStorage.getItem('ai-daily-theme');if(['editorial','mono','dune','blueprint','ink'].includes(t))document.documentElement.dataset.theme=t;}}catch(e){{}}</script>
 <link rel="stylesheet" href="{prefix}assets/style.css"><script defer src="{prefix}assets/site.js"></script>
-<link rel="alternate" type="application/rss+xml" title="AI 日报 RSS" href="{SITE_URL}feed.xml">
+<link rel="alternate" type="application/rss+xml" title="AI Daily Post RSS" href="{SITE_URL}feed.xml">
 </head><body data-site-root="{prefix}">
-<a class="skip-link" href="#main">跳到正文</a>
+<a class="skip-link" href="#main">Skip to content</a>
 <header class="site-header"><div class="header-inner">
-<button class="icon-button mobile-only" data-open-archive aria-controls="archive-sidebar" aria-expanded="false" aria-label="打开日报归档">{_icon('menu')}</button>
-<a class="brand" href="{prefix}index.html"><span class="brand-symbol" aria-hidden="true">a<span>i</span></span><span>AI 日报 <small>DAILY POST</small></span></a>
-<span class="header-note">世界变化很快，读点重要的。</span>
-<div class="header-actions"><button class="icon-button copy-button" data-copy-link aria-label="复制本期链接">{_icon('link')}</button>
-<details class="theme-picker"><summary class="icon-button" aria-label="切换阅读主题">{_icon('sun')}</summary><div class="theme-menu"><p>阅读主题</p>{theme_options}</div></details>
-<a class="icon-button repo-link" href="{prefix}feed.xml" aria-label="RSS 订阅" title="RSS 订阅">{_icon('rss')}</a>
-<a class="icon-button repo-link" href="https://github.com/dcYuan33/AI_Daily_Post" target="_blank" rel="noopener noreferrer" aria-label="GitHub 仓库">{_icon('external')}</a></div>
+<button class="icon-button mobile-only" data-open-archive aria-controls="archive-sidebar" aria-expanded="false" aria-label="Open issue archive">{_icon('menu')}</button>
+<a class="brand" href="{prefix}index.html"><span class="brand-symbol" aria-hidden="true">a<span>i</span></span><span>AI DAILY POST</span></a>
+<div class="header-actions"><button class="icon-button copy-button" data-copy-link aria-label="Copy link to this issue">{_icon('link')}</button>
+<details class="theme-picker"><summary class="icon-button" aria-label="Change reading theme">{_icon('sun')}</summary><div class="theme-menu"><p>Reading theme</p>{theme_options}</div></details>
+<a class="icon-button repo-link" href="{prefix}feed.xml" aria-label="RSS feed" title="RSS feed">{_icon('rss')}</a>
+<a class="icon-button repo-link" href="https://github.com/dcYuan33/AI_Daily_Post" target="_blank" rel="noopener noreferrer" aria-label="GitHub repository">{_icon('external')}</a></div>
 </div><div class="reading-progress" data-reading-progress></div></header>
 <div class="sidebar-backdrop" data-close-archive hidden></div>
 <div class="reader-layout">{_sidebar(reports, prefix, current, archive)}<main id="main" class="main-pane" tabindex="-1">{content}</main></div>
@@ -131,14 +131,14 @@ def _page(title: str, content: str, reports: list[DailyReport], prefix: str = ".
 def _overview(report: DailyReport) -> str:
     categories: OrderedDict[str, list[tuple[int, ReportItem]]] = OrderedDict()
     for index, item in enumerate(report.items, 1):
-        categories.setdefault(item.category or "其他", []).append((index, item))
+        categories.setdefault(category_label(item.category or "Other"), []).append((index, item))
     groups = []
     for category, items in categories.items():
         links = "".join(f'<li><a href="#item-{index}"><span class="overview-bullet"></span><span>{_e(item.title)}</span><span class="item-tag">#{index:02d}</span></a></li>' for index, item in items)
         groups.append(f'<section class="overview-group"><h3>{_e(category)} <span>{len(items)}</span></h3><ul>{links}</ul></section>')
     if not groups:
-        groups.append('<p class="empty-note">本期暂未发现足够可靠的重要 AI 新进展。宁缺毋滥，明天再见。</p>')
-    return f'<section class="overview" aria-labelledby="overview-title"><div class="section-kicker"><h2 id="overview-title">今日概览</h2><span>THE DAILY BRIEF</span></div>{"".join(groups)}</section>'
+        groups.append('<p class="empty-note">No sufficiently reliable AI developments were found for this date. Quality over quantity.</p>')
+    return f'<section class="overview" aria-labelledby="overview-title"><div class="section-kicker"><h2 id="overview-title">In This Issue</h2><span>THE DAILY BRIEF</span></div>{"".join(groups)}</section>'
 
 
 def _safe_url(url: str) -> bool:
@@ -155,12 +155,12 @@ def _paragraphs(text: str) -> str:
 
 def _article_item(index: int, item: ReportItem) -> str:
     sources = "".join(f'<a class="source-link" href="{_e(source["url"])}" target="_blank" rel="noopener noreferrer"><span class="source-tier">{_e(source["tier"])}</span>{_e(source["name"])}{_icon("external")}</a>' for source in item.sources if _safe_url(source["url"]))
-    comment = f'<aside class="comment"><span class="comment-label">简评 / OUR TAKE</span>{_paragraphs(item.comment)}</aside>' if item.comment else ""
+    comment = f'<aside class="comment"><span class="comment-label">COMMENT / OUR TAKE</span>{_paragraphs(item.comment)}</aside>' if item.comment else ""
     return f'''<article class="article-item" id="item-{index}" data-article>
-        <div class="article-meta"><span class="item-tag">#{index:02d}</span><span>{_e(item.category)}</span><span class="meta-dot">·</span><span>{_e(item.time)}</span></div>
+        <div class="article-meta"><span class="item-tag">#{index:02d}</span><span>{_e(category_label(item.category))}</span><span class="meta-dot">·</span><span>{_e(item.time)}</span></div>
         <h2><a href="#item-{index}">{_e(item.title)}</a></h2>
         <div class="article-body">{_paragraphs(item.summary)}</div>{comment}
-        <div class="sources"><span class="sources-label">来源</span>{sources}</div>
+        <div class="sources"><span class="sources-label">Sources</span>{sources}</div>
     </article>'''
 
 
@@ -169,11 +169,10 @@ def _reader(report: DailyReport, reports: list[DailyReport], prefix: str) -> str
     index = next(i for i, issue in enumerate(reports) if issue.report_date == report.report_date)
     newer = reports[index - 1] if index else None
     older = reports[index + 1] if index + 1 < len(reports) else None
-    weekday = "一二三四五六日"[day.weekday()]
-    prev_link = f'<a href="{prefix}issues/{older.report_date}/"><span>← 上一期</span><strong>{older.report_date}</strong></a>' if older else '<div class="pager-disabled"><span>← 上一期</span><strong>已是最早一期</strong></div>'
-    next_link = f'<a href="{prefix}issues/{newer.report_date}/"><span>下一期 →</span><strong>{newer.report_date}</strong></a>' if newer else f'<a href="{prefix}archive.html"><span>继续探索 →</span><strong>浏览全部归档</strong></a>'
+    prev_link = f'<a href="{prefix}issues/{older.report_date}/"><span>← Previous</span><strong>{older.report_date}</strong></a>' if older else '<div class="pager-disabled"><span>← Previous</span><strong>First issue</strong></div>'
+    next_link = f'<a href="{prefix}issues/{newer.report_date}/"><span>Next →</span><strong>{newer.report_date}</strong></a>' if newer else f'<a href="{prefix}archive.html"><span>Next →</span><strong>Browse all issues</strong></a>'
     toc_links = "".join(f'<a href="#item-{i}"><span class="item-tag">#{i:02d}</span><span>{_e(item.title)}</span></a>' for i, item in enumerate(report.items, 1))
-    toc = f'<details class="floating-toc"><summary aria-label="打开本期目录">{_icon("menu")}<span>目录</span></summary><nav class="toc-panel" aria-label="本期目录"><h2>本期目录 · {len(report.items)} 条</h2>{toc_links}</nav></details>' if report.items else ""
+    toc = f'<details class="floating-toc"><summary aria-label="Open issue contents">{_icon("menu")}<span>Contents</span></summary><nav class="toc-panel" aria-label="Issue contents"><h2>This issue · {len(report.items)} stories</h2>{toc_links}</nav></details>' if report.items else ""
     articles = "".join(_article_item(i, item) for i, item in enumerate(report.items, 1))
     try:
         generated = datetime.fromisoformat(report.generated_at).strftime("%Y.%m.%d %H:%M %z")
@@ -181,15 +180,14 @@ def _reader(report: DailyReport, reports: list[DailyReport], prefix: str) -> str
         generated = report.generated_at
     return f'''<div class="reading-shell" data-report-date="{report.report_date}">
         <header class="issue-header"><div class="issue-dateline"><span>{MONTHS[day.month - 1].upper()} {day.year}</span><span class="dateline-rule"></span><span>NO. {len(reports) - index:03d}</span></div>
-        <div class="issue-title-row"><h1><time datetime="{report.report_date}">{day:%m.%d}</time><span class="title-period"> / </span><span class="title-cn">AI 日报</span></h1><span class="weekday">星期{weekday}</span></div>
-        <p class="issue-subtitle">从纷繁的信息中，找到值得关注的 AI 进展。</p>
-        <div class="issue-metadata"><span>{_icon('book')}{len(report.items)} 条精选</span><span>约 {_reading_minutes(report)} 分钟阅读</span><span>Asia/Shanghai</span></div></header>
+        <div class="issue-title-row"><h1><time datetime="{report.report_date}">{day:%m.%d}</time><span class="title-period"> / </span><span class="title-sub">DAILY POST</span></h1><span class="weekday">{WEEKDAYS[day.weekday()]}</span></div>
+        <div class="issue-metadata"><span>{_icon('book')}{len(report.items)} stories</span><span>About {_reading_minutes(report)} min read</span><span>Asia/Shanghai</span></div></header>
         {_overview(report)}
-        <div class="article-section-label"><span>深入阅读</span><span class="dateline-rule"></span><span>IN DETAIL</span></div>
-        <div class="articles">{articles or '<p class="empty-note">本期暂无详细条目，可以通过左侧归档浏览往期内容。</p>'}</div>
-        <nav class="issue-pager" aria-label="相邻日报">{prev_link}{next_link}</nav>
-        <footer class="reading-footer"><a class="footer-brand" href="{prefix}index.html">AI DAILY POST<span>保持好奇，保持判断。</span></a><p>AI 辅助整理 · 原始来源可追溯<br>生成于 {_e(generated)}{'' if not generated else ' · 报告日期采用 UTC+8'}</p></footer>
-        {toc}<button class="back-to-top icon-button" data-back-top aria-label="回到顶部" hidden>{_icon('up')}</button>
+        <div class="article-section-label"><span>Stories</span><span class="dateline-rule"></span><span>IN DETAIL</span></div>
+        <div class="articles">{articles or '<p class="empty-note">No detailed stories for this issue yet. Browse the archive for earlier issues.</p>'}</div>
+        <nav class="issue-pager" aria-label="Adjacent issues">{prev_link}{next_link}</nav>
+        <footer class="reading-footer"><a class="footer-brand" href="{prefix}index.html">AI DAILY POST</a><p>AI-curated · Original sources linked<br>Generated {_e(generated)}{'' if not generated else ' · Report dates use UTC+8'}</p></footer>
+        {toc}<button class="back-to-top icon-button" data-back-top aria-label="Back to top" hidden>{_icon('up')}</button>
     </div>'''
 
 
@@ -197,12 +195,12 @@ def _archive_content(reports: list[DailyReport], prefix: str) -> str:
     entries = []
     for report in reports:
         day = date.fromisoformat(report.report_date)
-        excerpt = report.items[0].title if report.items else "本期暂无足够可靠的重要 AI 新进展"
-        searchable = " ".join([report.report_date, report.title] + [item.title + " " + item.summary for item in report.items])
-        entries.append(f'''<a class="archive-entry" href="{prefix}issues/{report.report_date}/" data-archive-entry data-search-text="{_e(searchable)}"><time datetime="{report.report_date}"><small>{day.year}</small>{day:%m.%d}</time><div><h2>{_e(report.title)}</h2><p>{_e(excerpt)}</p><span>{len(report.items)} 条精选 · 约 {_reading_minutes(report)} 分钟阅读</span></div><span class="archive-arrow">↗</span></a>''')
-    return f'''<div class="reading-shell archive-shell"><header class="issue-header"><div class="issue-dateline"><span>THE COLLECTION</span><span class="dateline-rule"></span><span>{len(reports):03d} ISSUES</span></div><h1 class="archive-title">每一天，都值得回看。</h1><p class="issue-subtitle">在这里，找到你错过的 AI 进展。</p></header>
-        <label class="archive-search">{_icon('search')}<input type="search" data-list-search placeholder="搜索日报日期、标题或关键词…" aria-label="搜索全部日报"></label>
-        <div class="archive-list">{"".join(entries) or '<p class="empty-note">第一期日报尚未生成。</p>'}<p class="empty-note" data-list-empty hidden>没有找到匹配的日报，试试其他关键词。</p></div></div>'''
+        excerpt = report.items[0].title if report.items else "No sufficiently reliable AI developments for this date"
+        searchable = " ".join([report.report_date] + [item.title + " " + item.summary for item in report.items])
+        entries.append(f'''<a class="archive-entry" href="{prefix}issues/{report.report_date}/" data-archive-entry data-search-text="{_e(searchable)}"><time datetime="{report.report_date}"><small>{day.year}</small>{day:%m.%d}</time><div><h2>AI Daily Post · {report.report_date}</h2><p>{_e(excerpt)}</p><span>{len(report.items)} stories · about {_reading_minutes(report)} min read</span></div><span class="archive-arrow">↗</span></a>''')
+    return f'''<div class="reading-shell archive-shell"><header class="issue-header"><div class="issue-dateline"><span>THE COLLECTION</span><span class="dateline-rule"></span><span>{len(reports):03d} ISSUES</span></div><h1 class="archive-title">Archive</h1></header>
+        <label class="archive-search">{_icon('search')}<input type="search" data-list-search placeholder="Search dates, titles or keywords…" aria-label="Search all issues"></label>
+        <div class="archive-list">{"".join(entries) or '<p class="empty-note">The first issue has not been generated yet.</p>'}<p class="empty-note" data-list-empty hidden>No matching issues. Try another keyword.</p></div></div>'''
 
 
 def _xml(value: str) -> str:
@@ -223,41 +221,34 @@ def _feed_datetime(report: DailyReport) -> datetime:
 
 
 def _feed_issue_html(report: DailyReport) -> str:
-    issue_url = f"{SITE_URL}issues/{report.report_date}/"
-    blocks = [f'<p>{_e(report.title)} · {len(report.items)} 条精选</p>']
-    for index, item in enumerate(report.items, 1):
+    blocks = []
+    for item in report.items:
         sources = " ".join(
             f'<a href="{_e(source["url"])}">{_e(source["tier"])} · {_e(source["name"])}</a>'
             for source in item.sources if _safe_url(source["url"])
         )
         summary = "".join(f"<p>{_e(line)}</p>" for line in item.summary.splitlines() if line.strip())
         comment = "".join(f"<p>{_e(line)}</p>" for line in item.comment.splitlines() if line.strip())
-        comment = f"<blockquote><strong>简评</strong>{comment}</blockquote>" if comment else ""
-        source_line = f'<p class="sources">来源：{sources}</p>' if sources else ""
-        blocks.append(f'''<h2><a href="{_e(issue_url)}#item-{index}">{_e(item.title)}</a></h2>
-<p><em>{_e(item.category)} · {_e(item.time)}</em></p>{summary}{comment}{source_line}''')
-    return "".join(blocks)
-
-
-def _feed_description(report: DailyReport) -> str:
-    titles = [item.title for item in report.items[:3]]
-    if not titles:
-        return "本期暂未发现足够可靠的重要 AI 新进展。"
-    suffix = " 等。" if len(report.items) > 3 else "。"
-    return f"本期收录 {len(report.items)} 条：" + "；".join(titles) + suffix
+        comment = f"<blockquote><strong>Our take</strong>{comment}</blockquote>" if comment else ""
+        source_line = f'<p class="sources">Sources: {sources}</p>' if sources else ""
+        blocks.append(f'''<article>
+<p><em>{_e(category_label(item.category))} · {_e(item.time)}</em></p>
+<h2>{_e(item.title)}</h2>{summary}{comment}{source_line}</article>''')
+    return "".join(blocks) or "<p>No sufficiently reliable AI developments were found for this date.</p>"
 
 
 def _feed_xml(reports: list[DailyReport]) -> str:
     entries = []
     for report in reports[:FEED_LIMIT]:
         issue_url = f"{SITE_URL}issues/{report.report_date}/"
+        content = _feed_issue_html(report)
         entries.append(f'''<item>
-<title>{_xml(report.title)}</title>
+<title>{_xml(report.report_date)}</title>
 <link>{_xml(issue_url)}</link>
 <guid isPermaLink="true">{_xml(issue_url)}</guid>
 <pubDate>{format_datetime(_feed_datetime(report))}</pubDate>
-<description>{_xml(_feed_description(report))}</description>
-<content:encoded>{_cdata(_feed_issue_html(report))}</content:encoded>
+<description>{_xml(content)}</description>
+<content:encoded>{_cdata(content)}</content:encoded>
 </item>''')
     last_build = format_datetime(_feed_datetime(reports[0])) if reports else format_datetime(datetime.now(timezone.utc))
     return f'''<?xml version="1.0" encoding="UTF-8"?>
@@ -266,7 +257,7 @@ def _feed_xml(reports: list[DailyReport]) -> str:
 <title>{_xml(SITE_TITLE)}</title>
 <link>{SITE_URL}</link>
 <description>{_xml(SITE_DESCRIPTION)}</description>
-<language>zh-CN</language>
+<language>en</language>
 <lastBuildDate>{last_build}</lastBuildDate>
 <generator>ai-daily-post</generator>
 <atom:link href="{SITE_URL}feed.xml" rel="self" type="application/rss+xml"/>
@@ -283,17 +274,17 @@ def rebuild_site(root: Path) -> Path:
     for name, destination in (("site.css", "style.css"), ("site.js", "site.js")):
         (site_root / "assets" / destination).write_text((ASSETS / name).read_text(encoding="utf-8"), encoding="utf-8")
     reports = _load_reports(site_root)
-    home = _reader(reports[0], reports, "./") if reports else '<div class="reading-shell"><header class="issue-header"><div class="issue-dateline">AI DAILY POST</div><h1 class="archive-title">下一份灵感，<br>即将抵达。</h1><p class="issue-subtitle">第一期 AI 日报将在生成后出现在这里。</p></header></div>'
-    (site_root / "index.html").write_text(_page("AI 日报 · AI Daily Post", home, reports, current=reports[0].report_date if reports else ""), encoding="utf-8")
-    (site_root / "archive.html").write_text(_page("日报归档 · AI Daily Post", _archive_content(reports, "./"), reports, archive=True), encoding="utf-8")
+    home = _reader(reports[0], reports, "./") if reports else '<div class="reading-shell"><header class="issue-header"><div class="issue-dateline">AI DAILY POST</div><h1 class="archive-title">No issues yet.</h1><p class="issue-subtitle">The first issue will appear here once it is generated.</p></header></div>'
+    (site_root / "index.html").write_text(_page("AI Daily Post", home, reports, current=reports[0].report_date if reports else ""), encoding="utf-8")
+    (site_root / "archive.html").write_text(_page("Archive · AI Daily Post", _archive_content(reports, "./"), reports, archive=True), encoding="utf-8")
     (site_root / "feed.xml").write_text(_feed_xml(reports), encoding="utf-8")
     for report in reports:
         content = _reader(report, reports, "../../")
-        (site_root / "issues" / report.report_date / "index.html").write_text(_page(report.title, content, reports, "../../", report.report_date), encoding="utf-8")
+        (site_root / "issues" / report.report_date / "index.html").write_text(_page(f"{report.report_date} · AI Daily Post", content, reports, "../../", report.report_date), encoding="utf-8")
     # A project Pages 404 can appear at any depth. Resolve its homepage from the
     # known project root rather than the missing path's directory.
-    error = '<div class="reading-shell"><header class="issue-header"><div class="issue-dateline">404 / PAGE NOT FOUND</div><h1 class="archive-title">这一页，暂时缺席。</h1><p class="issue-subtitle">回到首页，继续探索 AI 世界。</p><a class="return-home" href="./index.html" data-home-link>返回首页 →</a></header></div>'
-    not_found = _page("页面不存在 · AI Daily Post", error, reports)
+    error = '<div class="reading-shell"><header class="issue-header"><div class="issue-dateline">404 / PAGE NOT FOUND</div><h1 class="archive-title">Page not found.</h1><a class="return-home" href="./index.html" data-home-link>Back to home →</a></header></div>'
+    not_found = _page("Page not found · AI Daily Post", error, reports)
     # 404 pages may be served from a nested URL. Load assets from the Pages
     # project root before the browser resolves relative URLs against that path.
     asset_loader = """<script>(function(){const parts=location.pathname.split('/');const root=location.hostname.endsWith('.github.io')&&parts[1]?'/'+parts[1]+'/':'/';document.write('<link rel=\"stylesheet\" href=\"'+root+'assets/style.css\"><script defer src=\"'+root+'assets/site.js\"><\\/script>');})();</script>"""

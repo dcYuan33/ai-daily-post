@@ -68,14 +68,14 @@ def generate_report(settings, target_date: date, candidates: list[Candidate]) ->
             ReportItem(
                 title=str(raw["title"]),
                 time=str(raw.get("time") or target_date.isoformat()),
-                category=str(raw.get("category") or "其他"),
+                category=str(raw.get("category") or "Other"),
                 summary=str(raw["summary"]),
                 comment=str(raw.get("comment") or ""),
                 sources=sources,
             )
         )
     return DailyReport(
-        title=str(parsed.get("title") or f"AI 日报｜{target_date.isoformat()}"),
+        title=str(parsed.get("title") or target_date.isoformat()),
         report_date=target_date.isoformat(),
         generated_at=datetime.now(settings.timezone).isoformat(),
         items=items,

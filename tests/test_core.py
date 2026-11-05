@@ -35,8 +35,11 @@ class CoreTests(unittest.TestCase):
             )],
         )
         output = render_markdown(report)
+        self.assertIn("# 2026-10-05", output)
+        self.assertIn("## Highlights", output)
+        self.assertIn("Models & Research", output)
         self.assertIn("测试新闻", output)
-        self.assertIn("OpenAI News（A）", output)
+        self.assertIn("OpenAI News (A)", output)
         self.assertIn("https://example.com/news", output)
 
 
@@ -99,15 +102,20 @@ class CoreTests(unittest.TestCase):
             build_site(report, root)
             feed = (root / "site/feed.xml").read_text(encoding="utf-8")
             channel = ET.fromstring(feed).find("channel")
-            self.assertEqual(channel.findtext("title"), "AI 日报 · AI Daily Post")
+            self.assertEqual(channel.findtext("title"), "AI Daily Post")
+            self.assertEqual(channel.findtext("language"), "en")
             self.assertEqual(channel.find("{http://www.w3.org/2005/Atom}link").get("rel"), "self")
             item = channel.find("item")
-            self.assertEqual(item.findtext("title"), "AI 日报｜2026-10-06")
+            self.assertEqual(item.findtext("title"), "2026-10-06")
             self.assertEqual(item.findtext("link"), "https://dcyuan33.github.io/ai-daily-post/issues/2026-10-06/")
             self.assertEqual(item.findtext("pubDate"), "Wed, 07 Oct 2026 09:17:00 +0800")
             content = item.findtext("{http://purl.org/rss/1.0/modules/content/}encoded")
             self.assertIn("测试新闻", content)
-            self.assertIn("https://dcyuan33.github.io/ai-daily-post/issues/2026-10-06/#item-1", content)
+            self.assertIn("这是测试摘要。", content)
+            self.assertIn("这是简评。", content)
+            self.assertIn("Models &amp; Research", content)
+            self.assertNotIn("AI 日报｜", content)
+            self.assertNotIn("https://dcyuan33.github.io/ai-daily-post/issues/2026-10-06/#item-1", content)
             self.assertIn("https://example.com/news", content)
             self.assertNotIn("javascript:alert(1)", feed)
             self.assertIn('rel="alternate" type="application/rss+xml"', (root / "site/index.html").read_text(encoding="utf-8"))
@@ -138,7 +146,7 @@ class CoreTests(unittest.TestCase):
             md, html = save_report(report, Path(directory))
             self.assertTrue(md.exists())
             self.assertTrue(html.exists())
-            self.assertIn("暂未发现", md.read_text(encoding="utf-8"))
+            self.assertIn("No sufficiently reliable AI developments", md.read_text(encoding="utf-8"))
 
 
 if __name__ == "__main__":

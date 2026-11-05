@@ -21,7 +21,7 @@
       location.replace(entry.href);
       return;
     }
-    if (!entry) announce('该日期的日报尚未生成');
+    if (!entry) announce('No issue has been generated for that date');
   }
 
   const syncThemes = () => $$('[data-set-theme]').forEach((button) => {
@@ -96,8 +96,8 @@
   $('[data-copy-link]').addEventListener('click', async () => {
     const issue = $('[data-report-date]');
     const url = issue ? new URL(`${document.body.dataset.siteRoot}issues/${issue.dataset.reportDate}/`, location.href).href : location.href;
-    try { await navigator.clipboard.writeText(url); announce('本期链接已复制'); }
-    catch (_) { announce('无法自动复制，请复制浏览器地址栏中的链接'); }
+    try { await navigator.clipboard.writeText(url); announce('Link to this issue copied'); }
+    catch (_) { announce('Could not copy. Copy the URL from your browser instead.'); }
   });
 
   $$('[href^="#item-"]').forEach((link) => link.addEventListener('click', () => {

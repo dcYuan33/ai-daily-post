@@ -1,36 +1,16 @@
 # AI Daily Post
 
-无服务器的 AI 日报：由 GitHub Actions 每天运行，使用 `ai-weekly-briefing` 的 A/B/C 信源规则，并通过 GitHub Pages 展示完整日报。
-
-最终交付方式是：**GitHub Pages 展示完整日报**。
-
 ## 功能
 
 - 前一天自然日的 AI 新闻采集和中文日报生成；
 - A/B/C 信源配置集中在 `config/sources.yaml`；
 - RSS 优先，网页栏目作为候选，文章原文作为核验输入；
 - 生成 Markdown 和 HTML；
-- GitHub Pages：提供类似 Juya Daily 的阅读器布局：首页直接展示最新完整日报，左侧日期归档、全文搜索、目录、阅读进度和多种阅读主题；
+- GitHub Pages：首页直接展示最新完整日报，左侧日期归档、全文搜索、目录、阅读进度和多种阅读主题；
 
 - RSS 订阅：`site/feed.xml` 输出最近 50 期日报全文，并支持阅读器自动发现；
 - Python 使用 `uv` 管理；
 - GitHub Actions 手动运行时可以指定 `report_date`。
-
-## 首次配置
-
-1. 建议将仓库设为 Private 或 Public；GitHub Pages 对两种仓库都可以使用，但账号方案可能影响可用性。
-2. 在 GitHub Repository Settings → Secrets and variables → Actions 中添加：
-
-```text
-AI_API_KEY
-AI_BASE_URL       # 例如 https://api.openai.com/v1
-AI_MODEL
-```
-
-3. 在 Repository Settings → Pages 中将部署方式设置为 **GitHub Actions**（第一次运行 Workflow 后也可以在这里确认）。
-4. 先使用 `workflow_dispatch` 手动运行，填写 `report_date`，确认 Pages 后再等待定时任务。
-
-如果只修改了页面样式、不希望重新采集新闻，可以在 `workflow_dispatch` 中勾选 `site_only`。它只会读取仓库里已经保存的 `site/issues/*/data.json`，重新生成并部署 GitHub Pages。
 
 ## 本地运行
 
@@ -60,7 +40,7 @@ uv run python -m http.server 8000 --directory site
 
 ## 日报收录范围与运行诊断
 
-- 保持 A/B/C 信源，不额外加入 Juya 或其他聚合站。现有信源有可用 RSS 时优先获取带发布日期的条目。
+- 保持 A/B/C 信源。现有信源有可用 RSS 时优先获取带发布日期的条目。
 - 收录重大消息，也收录可核验的功能更新、小型工具、开源实践与专业解读。证据充足时目标为 15–25 条，最多 30 条；不设置最低条数，不用旧闻凑数。
 - A 类公告和 B 类可信报道可独立收录。C 类作者自己的实践/观点须明确归因，不能独立核验重大公司消息。
 - 文章请求预算为 120 条，按信源轮询分配，避免前几个信源占满预算；单篇输入摘录限制为 3000 字符以控制 AI 输入规模。

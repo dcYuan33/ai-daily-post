@@ -105,6 +105,7 @@ h1 { margin: 0; font: 700 58px/1.2 var(--display); letter-spacing: -.03em; }
 .item-tag { font: 10px/1.6 "SFMono-Regular", Consolas, monospace; color: var(--accent); background: var(--accent-soft); padding: 1px 5px; border-radius: 3px; white-space: nowrap; }
 .overview .item-tag { margin-left: auto; background: color-mix(in srgb, var(--bg) 65%, transparent); }
 .article-section-label { display: flex; gap: 14px; align-items: center; font-size: 9px; letter-spacing: .12em; color: var(--muted); margin-bottom: 30px; }
+.section-block + .section-block { margin-top: 40px; }
 .article-item { scroll-margin-top: 86px; margin-bottom: 38px; padding-bottom: 33px; border-bottom: 1px solid var(--line); }
 .article-item:last-child { margin-bottom: 0; border-bottom: 0; padding-bottom: 0; }
 .article-meta { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; color: var(--muted); font-size: 10px; line-height: 1.8; }

@@ -1,38 +1,44 @@
-# Derived from ~/.codex/skills/ai-weekly-briefing/sources.md.
-# RSS is preferred; webpage entries are candidates and require article-page verification.
+# Sources are grouped into three kinds: news, article, and paper.
+# RSS/API is preferred; webpage entries are candidates and require article-page verification.
+# Paper sources only keep papers with a public code repository. A higher weight gets more candidate slots.
 sources:
-  - {name: OpenAI News, tier: A, url: https://openai.com/news/, rss: https://openai.com/news/rss.xml, collection: rss, topics: [model, product, research, policy, safety]}
-  - {name: Anthropic News, tier: A, url: https://www.anthropic.com/news, collection: webpage, topics: [model, product, research, safety, enterprise]}
-  - {name: Google DeepMind, tier: A, url: https://deepmind.google/blog/, collection: webpage, topics: [model, research, science, safety]}
-  - {name: Meta AI, tier: A, url: https://ai.meta.com/blog/, collection: webpage, topics: [model, open-source, research, infrastructure]}
-  - {name: NVIDIA Deep Learning Blog, tier: A, url: https://blogs.nvidia.com/blog/category/deep-learning/, collection: webpage, topics: [chip, infrastructure, model, developer]}
-  - {name: Hugging Face Blog, tier: A, url: https://huggingface.co/blog, rss: https://huggingface.co/blog/feed.xml, collection: rss, topics: [open-source, model, dataset, developer]}
-  - {name: Papers With Code, tier: A, url: https://paperswithcode.com/, collection: webpage, topics: [research, open-source]}
+  # Tier A: official blogs, research blogs, and high-quality articles
+  - {name: OpenAI News, tier: A, url: https://openai.com/news/, rss: https://openai.com/news/rss.xml, collection: rss, kind: article, topics: [model, product, research, policy, safety]}
+  - {name: Anthropic News, tier: A, url: https://www.anthropic.com/news, collection: webpage, kind: article, topics: [model, product, research, safety, enterprise]}
+  - {name: Anthropic Engineering, tier: A, url: https://www.anthropic.com/engineering, collection: webpage, kind: article, topics: [engineering, product, research, safety]}
+  - {name: Google DeepMind, tier: A, url: https://deepmind.google/blog/, rss: https://deepmind.google/blog/rss.xml, collection: rss, kind: article, topics: [model, research, science, safety]}
+  - {name: Google Research Blog, tier: A, url: https://research.google/blog/, rss: https://research.google/blog/rss/, collection: rss, kind: article, topics: [research, model, science]}
+  - {name: Meta AI, tier: A, url: https://ai.meta.com/blog/, collection: webpage, kind: article, topics: [model, open-source, research, infrastructure]}
+  - {name: NVIDIA Deep Learning Blog, tier: A, url: https://blogs.nvidia.com/blog/category/deep-learning/, collection: webpage, kind: article, topics: [chip, infrastructure, model, developer]}
+  - {name: Hugging Face Blog, tier: A, url: https://huggingface.co/blog, rss: https://huggingface.co/blog/feed.xml, collection: rss, kind: article, topics: [open-source, model, dataset, developer]}
+  - {name: Microsoft Research Blog, tier: A, url: https://www.microsoft.com/en-us/research/blog/, rss: https://www.microsoft.com/en-us/research/feed/, collection: rss, kind: article, topics: [research, model, science]}
+  - {name: AWS Machine Learning Blog, tier: A, url: https://aws.amazon.com/blogs/machine-learning/, rss: https://aws.amazon.com/blogs/machine-learning/feed/, collection: rss, kind: article, topics: [cloud, model, developer, infrastructure]}
+  - {name: Apple Machine Learning Research, tier: A, url: https://machinelearning.apple.com/, rss: https://machinelearning.apple.com/rss.xml, collection: rss, kind: article, topics: [research, model, product]}
+  - {name: Berkeley BAIR Blog, tier: A, url: https://bair.berkeley.edu/blog/, rss: https://bair.berkeley.edu/blog/feed.xml, collection: rss, kind: article, topics: [research, model, robotics]}
+  - {name: The Gradient, tier: A, url: https://thegradient.pub/, rss: https://thegradient.pub/rss/, collection: rss, kind: article, topics: [research, analysis, society]}
+  - {name: Lil'Log, tier: A, url: https://lilianweng.github.io/, rss: https://lilianweng.github.io/index.xml, collection: rss, kind: article, topics: [research, model, engineering]}
+
+  # Papers: keep only code-backed papers; weight is higher than ordinary sources
+  - {name: Papers With Code, tier: A, url: https://huggingface.co/papers, api: https://huggingface.co/api/daily_papers, collection: papers, kind: paper, weight: 4, limit: 12, topics: [research, paper, code, open-source]}
+
+  # Tier B: credible news and industry reporting
   - {name: NIST AI, tier: B, url: https://www.nist.gov/artificial-intelligence, collection: webpage, topics: [policy, safety, standards]}
-  - {name: FTC AI Guidance, tier: B, url: https://www.ftc.gov/business-guidance/artificial-intelligence, collection: webpage, topics: [policy, safety, consumer]}
-  - {name: CISA AI, tier: B, url: https://www.cisa.gov/topics/artificial-intelligence, collection: webpage, topics: [policy, safety, security]}
-  - {name: Reuters AI, tier: B, url: https://www.reuters.com/technology/artificial-intelligence/, collection: webpage, topics: [company, capital, policy, industry]}
-  - {name: Associated Press AI, tier: B, url: https://apnews.com/hub/artificial-intelligence, collection: webpage, topics: [industry, policy, society]}
   - {name: Bloomberg AI, tier: B, url: https://www.bloomberg.com/technology/ai, collection: webpage, topics: [company, capital, chip, cloud]}
-  - {name: The New York Times AI, tier: B, url: https://www.nytimes.com/spotlight/artificial-intelligence, collection: webpage, topics: [industry, policy, society]}
-  - {name: The Wall Street Journal AI, tier: B, url: https://www.wsj.com/tech/ai, collection: webpage, topics: [company, capital, industry]}
-  - {name: Financial Times AI, tier: B, url: https://www.ft.com/artificial-intelligence, collection: webpage, topics: [company, capital, policy, industry]}
   - {name: The Guardian AI, tier: B, url: https://www.theguardian.com/technology/artificialintelligenceai, rss: https://www.theguardian.com/technology/artificialintelligenceai/rss, collection: rss, topics: [policy, society, copyright]}
-  - {name: BBC AI, tier: B, url: https://www.bbc.com/news/topics/cjgn7p9zzqyt, collection: webpage, topics: [industry, policy, society]}
-  - {name: CNN AI, tier: B, url: https://www.cnn.com/specials/tech/artificial-intelligence, collection: webpage, topics: [industry, policy, society]}
+  - {name: BBC AI, tier: B, url: https://www.bbc.com/news/topics/cjgn7p9zzqyt, rss: https://feeds.bbci.co.uk/news/technology/rss.xml, collection: rss, topics: [industry, policy, society]}
   - {name: WIRED AI, tier: B, url: https://www.wired.com/tag/artificial-intelligence/, collection: webpage, topics: [product, research, privacy, society]}
-  - {name: The Information AI, tier: B, url: https://www.theinformation.com/topics/ai-technology, collection: webpage, topics: [company, capital, product]}
-  - {name: MIT Technology Review AI, tier: B, url: https://www.technologyreview.com/topic/artificial-intelligence/, collection: webpage, topics: [research, policy, society]}
-  - {name: Stanford HAI, tier: B, url: https://hai.stanford.edu/news, collection: webpage, topics: [research, policy, measurement]}
+  - {name: MIT Technology Review AI, tier: B, url: https://www.technologyreview.com/topic/artificial-intelligence/, rss: https://www.technologyreview.com/topic/artificial-intelligence/feed/, collection: rss, topics: [research, policy, society]}
   - {name: TechCrunch AI, tier: B, url: https://techcrunch.com/category/artificial-intelligence/, rss: https://techcrunch.com/category/artificial-intelligence/feed/, collection: rss, topics: [startup, product, capital, developer]}
   - {name: The Verge AI, tier: B, url: https://www.theverge.com/ai-artificial-intelligence, collection: webpage, topics: [product, platform, model]}
   - {name: Ars Technica AI, tier: B, url: https://arstechnica.com/ai/, rss: https://arstechnica.com/ai/feed/, collection: rss, topics: [developer, infrastructure, privacy, security]}
   - {name: Hacker News, tier: C, url: https://news.ycombinator.com/news, rss: https://news.ycombinator.com/rss, collection: rss, topics: [developer, open-source]}
-  - {name: Import AI, tier: C, url: https://jack-clark.net/, collection: webpage, topics: [research, policy, industry]}
-  - {name: TLDR AI, tier: C, url: https://tldr.tech/ai, collection: webpage, topics: [news, research, developer]}
-  - {name: Latent Space, tier: C, url: https://www.latent.space/, collection: webpage, topics: [developer, research, industry]}
-  - {name: Ahead of AI, tier: C, url: https://magazine.sebastianraschka.com/, collection: webpage, topics: [research, developer]}
-  - {name: The Batch, tier: C, url: https://www.deeplearning.ai/the-batch/, collection: webpage, topics: [research, industry]}
-  - {name: One Useful Thing, tier: C, url: https://www.oneusefulthing.org/, collection: webpage, topics: [application, society]}
-  - {name: Interconnects AI, tier: C, url: https://www.interconnects.ai/, collection: webpage, topics: [model, open-source, research]}
-  - {name: Simon Willison's Weblog, tier: C, url: https://simonwillison.net/, rss: https://simonwillison.net/atom/everything/, collection: rss, topics: [developer, security, model]}
+
+  # Tier C: author practice, industry analysis, and in-depth articles
+  - {name: Import AI, tier: C, url: https://jack-clark.net/, rss: https://jack-clark.net/feed/, collection: rss, kind: article, topics: [research, policy, industry]}
+  - {name: TLDR AI, tier: C, url: https://tldr.tech/ai, rss: https://tldr.tech/api/rss/ai, collection: rss, topics: [news, research, developer]}
+  - {name: Latent Space, tier: C, url: https://www.latent.space/, rss: https://www.latent.space/feed, collection: rss, kind: article, topics: [developer, research, industry]}
+  - {name: Ahead of AI, tier: C, url: https://magazine.sebastianraschka.com/, rss: https://magazine.sebastianraschka.com/feed, collection: rss, kind: article, topics: [research, developer]}
+  - {name: The Batch, tier: C, url: https://www.deeplearning.ai/the-batch/, collection: webpage, kind: article, topics: [research, industry]}
+  - {name: One Useful Thing, tier: C, url: https://www.oneusefulthing.org/, rss: https://www.oneusefulthing.org/feed, collection: rss, kind: article, topics: [application, society]}
+  - {name: Interconnects AI, tier: C, url: https://www.interconnects.ai/, rss: https://www.interconnects.ai/feed, collection: rss, kind: article, topics: [model, open-source, research]}
+  - {name: Simon Willison's Weblog, tier: C, url: https://simonwillison.net/, rss: https://simonwillison.net/atom/everything/, collection: rss, kind: article, topics: [developer, security, model]}

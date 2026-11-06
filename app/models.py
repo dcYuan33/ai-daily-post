@@ -16,6 +16,9 @@ class Candidate:
     summary: str = ""
     content: str = ""
     topics: list[str] = field(default_factory=list)
+    kind: str = "news"
+    code_url: str = ""
+    weight: int = 1
 
     def as_prompt_dict(self) -> dict[str, Any]:
         return {
@@ -28,6 +31,8 @@ class Candidate:
             "summary": self.summary[:2000],
             "content_excerpt": self.content[:3000],
             "topics": self.topics,
+            "kind": self.kind,
+            "code_url": self.code_url,
         }
 
 
@@ -39,6 +44,8 @@ class ReportItem:
     summary: str
     comment: str = ""
     sources: list[dict[str, str]] = field(default_factory=list)
+    section: str = "news"
+    code_url: str = ""
 
 
 @dataclass

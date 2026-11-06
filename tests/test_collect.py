@@ -4,7 +4,7 @@ from unittest.mock import Mock, patch
 
 from bs4 import BeautifulSoup
 
-from app.collect import _local_date, _page_date, _rss_candidates, collect_candidates, enrich_candidates, fetch_page
+from app.collect import _local_date, _page_date, _paper_candidates, _rss_candidates, collect_candidates, enrich_candidates, fetch_page
 from app.models import Candidate
 
 
@@ -49,6 +49,42 @@ class CollectionTests(unittest.TestCase):
                                       ("old", datetime(2026, 10, 6)), ("unknown", None)]]
         enrich.return_value = items
         self.assertEqual([item.title for item in collect_candidates(None, date(2026, 10, 7))], ["today", "unknown"])
+
+    @patch("app.collect.fetch_page", return_value=("https://example.com/article", "body", None))
+    def test_paper_source_weight_selects_more_papers(self, fetch):
+        candidates = (
+            [Candidate("paper", "A", "https://example.com/", f"p{i}", f"https://example.com/p/{i}", kind="paper", weight=4) for i in range(8)]
+            + [Candidate("news", "B", "https://example.com/", f"n{i}", f"https://example.com/n/{i}") for i in range(8)]
+        )
+        enriched = enrich_candidates(candidates, max_articles=10)
+        self.assertEqual(sum(item.source_name == "paper" for item in enriched), 8)
+        self.assertEqual(sum(item.source_name == "news" for item in enriched), 2)
+
+    @patch("app.collect.requests.get")
+    def test_paper_candidates_keep_only_code_backed_papers(self, get):
+        get.return_value = Mock()
+        get.return_value.json.return_value = [
+            {"paper": {
+                "id": "2611.00001", "title": "Paper with code",
+                "summary": "Paper abstract.", "submittedOnDailyAt": "2026-11-05T00:00:00.000Z",
+                "githubRepo": "https://github.com/example/paper",
+            }},
+            {"paper": {
+                "id": "2611.00002", "title": "Paper without code",
+                "summary": "Paper abstract.", "submittedOnDailyAt": "2026-11-05T00:00:00.000Z",
+                "githubRepo": None,
+            }},
+        ]
+        source = {
+            "name": "Papers With Code", "tier": "A", "url": "https://huggingface.co/papers",
+            "api": "https://huggingface.co/api/daily_papers", "kind": "paper", "weight": 4,
+        }
+        entries = _paper_candidates(source, date(2026, 11, 5))
+        self.assertEqual([entry.title for entry in entries], ["Paper with code"])
+        self.assertEqual(entries[0].code_url, "https://github.com/example/paper")
+        self.assertEqual(entries[0].kind, "paper")
+        self.assertEqual(entries[0].weight, 4)
+        self.assertEqual(entries[0].published_at.date(), date(2026, 11, 5))
 
     @patch("app.collect.requests.get")
     def test_rss_excludes_next_local_day_not_previous_utc_day(self, get):

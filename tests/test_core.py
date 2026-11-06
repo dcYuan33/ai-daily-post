@@ -6,6 +6,7 @@ from datetime import date
 from pathlib import Path
 from zoneinfo import ZoneInfo
 
+from app.llm import _section_for
 from app.main import resolve_report_date
 from app.models import DailyReport, ReportItem
 from app.render import render_markdown, save_report
@@ -23,36 +24,41 @@ class CoreTests(unittest.TestCase):
 
     def test_markdown_contains_sources(self):
         report = DailyReport(
-            title="AI 日报｜2026-10-05",
+            title="AI Daily | 2026-10-05",
             report_date="2026-10-05",
             generated_at="2026-10-06T09:17:00+08:00",
             items=[ReportItem(
-                title="测试新闻",
+                title="Test story",
                 time="2026-10-05",
-                category="模型与研究",
-                summary="这是测试摘要。",
+                category="Models & Research",
+                summary="This is a test summary.",
                 sources=[{"name": "OpenAI News", "tier": "A", "url": "https://example.com/news"}],
             )],
         )
         output = render_markdown(report)
-        self.assertIn("# 2026-10-05", output)
-        self.assertIn("## Highlights", output)
+        self.assertIn("# AI Daily | 2026-10-05", output)
+        self.assertIn("## News", output)
         self.assertIn("Models & Research", output)
-        self.assertIn("测试新闻", output)
+        self.assertIn("Test story", output)
         self.assertIn("OpenAI News (A)", output)
         self.assertIn("https://example.com/news", output)
 
+    def test_section_is_derived_from_source_kind(self):
+        self.assertEqual(_section_for({"news"}), "news")
+        self.assertEqual(_section_for({"article", "news"}), "article")
+        self.assertEqual(_section_for({"paper", "article"}), "paper")
+        self.assertEqual(_section_for(set()), "news")
 
     def test_build_site(self):
         report = DailyReport(
-            "AI 日报｜2026-10-06",
+            "AI Daily | 2026-10-06",
             "2026-10-06",
             "2026-10-07T09:17:00+08:00",
             [ReportItem(
-                title="测试新闻",
+                title="Test story",
                 time="2026-10-06",
-                category="模型与研究",
-                summary="这是测试摘要。",
+                category="Models & Research",
+                summary="This is a test summary.",
                 sources=[{"name": "OpenAI News", "tier": "A", "url": "https://example.com/news"}],
             )],
         )
@@ -67,13 +73,13 @@ class CoreTests(unittest.TestCase):
 
     def test_reader_escapes_content_and_rejects_unsafe_sources(self):
         report = DailyReport(
-            "AI 日报｜2026-10-06", "2026-10-06", "now",
+            "AI Daily | 2026-10-06", "2026-10-06", "now",
             [ReportItem(
-                title="<script>alert(1)</script>", time="2026-10-06", category="测试",
-                summary="摘要 <b>不应被当作 HTML</b>",
+                title="<script>alert(1)</script>", time="2026-10-06", category="Test",
+                summary="Summary <b>must not be treated as HTML</b>",
                 sources=[
-                    {"name": "恶意", "tier": "A", "url": "javascript:alert(1)"},
-                    {"name": "安全来源", "tier": "B", "url": "https://example.com"},
+                    {"name": "Malicious", "tier": "A", "url": "javascript:alert(1)"},
+                    {"name": "Safe source", "tier": "B", "url": "https://example.com"},
                 ],
             )],
         )
@@ -87,13 +93,13 @@ class CoreTests(unittest.TestCase):
 
     def test_build_site_writes_rss_feed(self):
         report = DailyReport(
-            "AI 日报｜2026-10-06", "2026-10-06", "2026-10-07T09:17:00+08:00",
+            "AI Daily | 2026-10-06", "2026-10-06", "2026-10-07T09:17:00+08:00",
             [ReportItem(
-                title="测试新闻", time="2026-10-06", category="模型与研究",
-                summary="这是测试摘要。", comment="这是简评。",
+                title="Test story", time="2026-10-06", category="Models & Research",
+                summary="This is a test summary.", comment="This is a test comment.",
                 sources=[
-                    {"name": "安全来源", "tier": "A", "url": "https://example.com/news"},
-                    {"name": "恶意", "tier": "B", "url": "javascript:alert(1)"},
+                    {"name": "Safe source", "tier": "A", "url": "https://example.com/news"},
+                    {"name": "Malicious", "tier": "B", "url": "javascript:alert(1)"},
                 ],
             )],
         )
@@ -115,19 +121,19 @@ class CoreTests(unittest.TestCase):
             self.assertEqual(item.findtext("link"), "https://dcyuan33.github.io/ai-daily-post/issues/2026-10-06/")
             self.assertEqual(item.findtext("pubDate"), "Wed, 07 Oct 2026 09:17:00 +0800")
             content = item.findtext("{http://purl.org/rss/1.0/modules/content/}encoded")
-            self.assertIn("测试新闻", content)
-            self.assertIn("这是测试摘要。", content)
-            self.assertIn("这是简评。", content)
+            self.assertIn("Test story", content)
+            self.assertIn("This is a test summary.", content)
+            self.assertIn("This is a test comment.", content)
             self.assertIn("Models &amp; Research", content)
-            self.assertNotIn("AI 日报｜", content)
+            self.assertNotIn("AI Daily | ", content)
             self.assertNotIn("https://dcyuan33.github.io/ai-daily-post/issues/2026-10-06/#item-1", content)
             self.assertIn("https://example.com/news", content)
             self.assertNotIn("javascript:alert(1)", feed)
             self.assertIn('rel="alternate" type="application/rss+xml"', (root / "site/index.html").read_text(encoding="utf-8"))
 
     def test_rebuild_site_preserves_multiple_issue_archive(self):
-        first = DailyReport("AI 日报｜2026-10-06", "2026-10-06", "now", [])
-        second = DailyReport("AI 日报｜2026-10-07", "2026-10-07", "now", [])
+        first = DailyReport("AI Daily | 2026-10-06", "2026-10-06", "now", [])
+        second = DailyReport("AI Daily | 2026-10-07", "2026-10-07", "now", [])
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
             build_site(first, root)
@@ -145,13 +151,46 @@ class CoreTests(unittest.TestCase):
             self.assertIn("issues/2026-10-06/", (root / "site/issues/2026-10-07/index.html").read_text(encoding="utf-8"))
             self.assertEqual(original, (root / "site/issues/2026-10-06/data.json").read_text(encoding="utf-8"))
 
+    def test_sections_group_news_articles_and_papers(self):
+        report = DailyReport(
+            "AI Daily | 2026-10-06", "2026-10-06", "2026-10-07T09:17:00+08:00",
+            [
+                ReportItem(
+                    title="News item", time="2026-10-06", category="Models & Research",
+                    summary="News summary.", section="news",
+                    sources=[{"name": "OpenAI News", "tier": "A", "url": "https://example.com/news"}],
+                ),
+                ReportItem(
+                    title="Article item", time="2026-10-06", category="Models & Research",
+                    summary="Article summary.", section="article",
+                    sources=[{"name": "Anthropic News", "tier": "A", "url": "https://example.com/article"}],
+                ),
+                ReportItem(
+                    title="Paper item", time="2026-10-06", category="Models & Research",
+                    summary="Paper summary.", section="paper", code_url="https://github.com/example/code",
+                    sources=[{"name": "Papers With Code", "tier": "A", "url": "https://example.com/paper"}],
+                ),
+            ],
+        )
+        output = render_markdown(report)
+        positions = [output.index("## News"), output.index("## Articles"), output.index("## Papers")]
+        self.assertEqual(positions, sorted(positions))
+        self.assertIn("- Code: https://github.com/example/code", output)
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            build_site(report, root)
+            page = (root / "site/index.html").read_text(encoding="utf-8")
+            for section in ("news", "article", "paper"):
+                self.assertIn(f'id="section-{section}"', page)
+            self.assertIn('href="https://github.com/example/code"', page)
+
     def test_save_report(self):
-        report = DailyReport("AI 日报｜2026-10-05", "2026-10-05", "now", [])
+        report = DailyReport("AI Daily | 2026-10-05", "2026-10-05", "now", [])
         with tempfile.TemporaryDirectory() as directory:
             md, html = save_report(report, Path(directory))
             self.assertTrue(md.exists())
             self.assertTrue(html.exists())
-            self.assertIn("No sufficiently reliable AI developments", md.read_text(encoding="utf-8"))
+            self.assertIn("No sufficiently reliable AI developments were found for this date.", md.read_text(encoding="utf-8"))
 
 
 if __name__ == "__main__":

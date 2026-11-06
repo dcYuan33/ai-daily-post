@@ -13,15 +13,16 @@ from pathlib import Path
 from urllib.parse import urlsplit
 from zoneinfo import ZoneInfo
 
-from .labels import WEEKDAYS, WEEKDAY_ABBR, category_label
+from .labels import WEEKDAYS, WEEKDAY_ABBR, category_label, section_key, section_label
 from .models import DailyReport, ReportItem
 
 ASSETS = Path(__file__).parent / "assets"
 SITE_URL = "https://dcyuan33.github.io/ai-daily-post/"
 SITE_TITLE = "AI Daily Post"
-SITE_DESCRIPTION = "Daily AI news curated from A/B/C sources, with links to the original reporting."
+SITE_DESCRIPTION = "Daily AI news, articles, and code-backed papers curated from A/B/C sources."
 REPORT_TIMEZONE = ZoneInfo("Asia/Shanghai")
 FEED_LIMIT = 50
+SECTION_ORDER = ("news", "article", "paper")
 MONTHS = ("January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December")
 THEMES = (("editorial", "Classic", "#faf8f5", "#c44b2b"), ("mono", "Minimal", "#ffffff", "#111111"), ("dune", "Dune", "#faf6f0", "#b57b31"), ("blueprint", "Blueprint", "#f8faff", "#2563eb"), ("ink", "Ink", "#191714", "#ee8866"))
 ICONS = {
@@ -77,6 +78,10 @@ def _reading_minutes(report: DailyReport) -> int:
     return max(1, math.ceil(sum(len(item.summary) + len(item.comment) for item in report.items) / 400))
 
 
+def _ordered_items(report: DailyReport) -> list[ReportItem]:
+    return [item for section in SECTION_ORDER for item in report.items if section_key(item.section) == section]
+
+
 def _sidebar(reports: list[DailyReport], prefix: str, current: str, archive: bool) -> str:
     months: OrderedDict[str, list[DailyReport]] = OrderedDict()
     for report in reports:
@@ -88,14 +93,14 @@ def _sidebar(reports: list[DailyReport], prefix: str, current: str, archive: boo
             day = date.fromisoformat(report.report_date)
             active = report.report_date == current and not archive
             latest = report is reports[0]
-            searchable = " ".join([report.report_date] + [item.title + " " + item.summary for item in report.items])
+            searchable = " ".join([report.report_date, report.title] + [item.title + " " + item.summary for item in report.items])
             links.append(f'''<a class="date-entry{' active' if active else ''}" href="{prefix}issues/{report.report_date}/" data-date-entry data-search-text="{_e(searchable)}"{' aria-current="page"' if active else ''}>
                 <div class="date-entry-top"><time datetime="{report.report_date}">{day:%m.%d}</time><span>{WEEKDAY_ABBR[day.weekday()]}</span>{'<i class="latest-dot" title="Latest issue"></i>' if latest else ''}</div>
                 <div class="date-entry-bottom"><span>{len(report.items)} stories</span><span class="entry-arrow">↗</span></div></a>''')
         month_name = f"{MONTHS[int(month[5:]) - 1]} {month[:4]}"
         groups.append(f'<section class="date-group"><h3>{month_name}</h3>{"".join(links)}</section>')
     return f'''<aside class="sidebar" id="archive-sidebar" aria-label="Issue archive">
-        <div class="sidebar-heading"><span>{_icon('calendar')} Archive</span><button class="icon-button mobile-only" data-close-archive aria-label="Close archive">{_icon('close')}</button></div>
+        <div class="sidebar-heading"><span>{_icon('calendar')} Issue archive</span><button class="icon-button mobile-only" data-close-archive aria-label="Close archive">{_icon('close')}</button></div>
         <label class="sidebar-search">{_icon('search')}<input type="search" data-archive-search placeholder="Search dates or keywords" aria-label="Search dates or keywords" autocomplete="off"></label>
         <div class="date-list">{"".join(groups) or '<p class="sidebar-empty">Waiting for the first issue</p>'}<p class="sidebar-empty" data-search-empty hidden>No matching issues</p></div>
         <a class="all-issues{' active' if archive else ''}" href="{prefix}archive.html">All issues <span>{len(reports)}</span></a>
@@ -111,7 +116,7 @@ def _page(title: str, content: str, reports: list[DailyReport], prefix: str = ".
 <meta name="description" content="{_e(SITE_DESCRIPTION)}">
 <meta name="color-scheme" content="light dark"><title>{_e(title)}</title>
 <meta property="og:type" content="website">
-<meta property="og:site_name" content="AI Daily Post">
+<meta property="og:site_name" content="{SITE_TITLE}">
 <meta property="og:title" content="{_e(title)}">
 <meta property="og:description" content="{_e(SITE_DESCRIPTION)}">
 <meta property="og:image" content="{SITE_URL}assets/logo.png">
@@ -141,16 +146,17 @@ def _page(title: str, content: str, reports: list[DailyReport], prefix: str = ".
 
 
 def _overview(report: DailyReport) -> str:
-    categories: OrderedDict[str, list[tuple[int, ReportItem]]] = OrderedDict()
-    for index, item in enumerate(report.items, 1):
-        categories.setdefault(category_label(item.category or "Other"), []).append((index, item))
+    indexed = list(enumerate(_ordered_items(report), 1))
     groups = []
-    for category, items in categories.items():
+    for section in SECTION_ORDER:
+        items = [(index, item) for index, item in indexed if section_key(item.section) == section]
+        if not items:
+            continue
         links = "".join(f'<li><a href="#item-{index}"><span class="overview-bullet"></span><span>{_e(item.title)}</span><span class="item-tag">#{index:02d}</span></a></li>' for index, item in items)
-        groups.append(f'<section class="overview-group"><h3>{_e(category)} <span>{len(items)}</span></h3><ul>{links}</ul></section>')
+        groups.append(f'<section class="overview-group"><h3>{_e(section_label(section))} <span>{len(items)}</span></h3><ul>{links}</ul></section>')
     if not groups:
         groups.append('<p class="empty-note">No sufficiently reliable AI developments were found for this date. Quality over quantity.</p>')
-    return f'<section class="overview" aria-labelledby="overview-title"><div class="section-kicker"><h2 id="overview-title">In This Issue</h2><span>THE DAILY BRIEF</span></div>{"".join(groups)}</section>'
+    return f'<section class="overview" aria-labelledby="overview-title"><div class="section-kicker"><h2 id="overview-title">In This Issue</h2><span>NEWS · ARTICLES · PAPERS</span></div>{"".join(groups)}</section>'
 
 
 def _safe_url(url: str) -> bool:
@@ -167,6 +173,8 @@ def _paragraphs(text: str) -> str:
 
 def _article_item(index: int, item: ReportItem) -> str:
     sources = "".join(f'<a class="source-link" href="{_e(source["url"])}" target="_blank" rel="noopener noreferrer"><span class="source-tier">{_e(source["tier"])}</span>{_e(source["name"])}{_icon("external")}</a>' for source in item.sources if _safe_url(source["url"]))
+    if item.code_url and _safe_url(item.code_url):
+        sources += f'<a class="source-link code-link" href="{_e(item.code_url)}" target="_blank" rel="noopener noreferrer"><span class="source-tier">CODE</span>Code repository{_icon("external")}</a>'
     comment = f'<aside class="comment"><span class="comment-label">COMMENT / OUR TAKE</span>{_paragraphs(item.comment)}</aside>' if item.comment else ""
     return f'''<article class="article-item" id="item-{index}" data-article>
         <div class="article-meta"><span class="item-tag">#{index:02d}</span><span>{_e(category_label(item.category))}</span><span class="meta-dot">·</span><span>{_e(item.time)}</span></div>
@@ -183,9 +191,20 @@ def _reader(report: DailyReport, reports: list[DailyReport], prefix: str) -> str
     older = reports[index + 1] if index + 1 < len(reports) else None
     prev_link = f'<a href="{prefix}issues/{older.report_date}/"><span>← Previous</span><strong>{older.report_date}</strong></a>' if older else '<div class="pager-disabled"><span>← Previous</span><strong>First issue</strong></div>'
     next_link = f'<a href="{prefix}issues/{newer.report_date}/"><span>Next →</span><strong>{newer.report_date}</strong></a>' if newer else f'<a href="{prefix}archive.html"><span>Next →</span><strong>Browse all issues</strong></a>'
-    toc_links = "".join(f'<a href="#item-{i}"><span class="item-tag">#{i:02d}</span><span>{_e(item.title)}</span></a>' for i, item in enumerate(report.items, 1))
+    ordered = _ordered_items(report)
+    toc_links = "".join(f'<a href="#item-{i}"><span class="item-tag">#{i:02d}</span><span>{_e(item.title)}</span></a>' for i, item in enumerate(ordered, 1))
     toc = f'<details class="floating-toc"><summary aria-label="Open issue contents">{_icon("menu")}<span>Contents</span></summary><nav class="toc-panel" aria-label="Issue contents"><h2>This issue · {len(report.items)} stories</h2>{toc_links}</nav></details>' if report.items else ""
-    articles = "".join(_article_item(i, item) for i, item in enumerate(report.items, 1))
+    indexed = list(enumerate(ordered, 1))
+    section_blocks = []
+    for section in SECTION_ORDER:
+        section_items = [(item_index, item) for item_index, item in indexed if section_key(item.section) == section]
+        if not section_items:
+            continue
+        cards = "".join(_article_item(item_index, item) for item_index, item in section_items)
+        section_blocks.append(f'''<section class="section-block" id="section-{section}">
+        <div class="article-section-label"><span>{_e(section_label(section))}</span><span class="dateline-rule"></span><span>{len(section_items)} stories</span></div>
+        <div class="articles">{cards}</div></section>''')
+    articles = "".join(section_blocks) or '<p class="empty-note">No detailed stories for this issue yet. Browse the archive for earlier issues.</p>'
     try:
         generated = datetime.fromisoformat(report.generated_at).strftime("%Y.%m.%d %H:%M %z")
     except ValueError:
@@ -195,10 +214,9 @@ def _reader(report: DailyReport, reports: list[DailyReport], prefix: str) -> str
         <div class="issue-title-row"><h1><time datetime="{report.report_date}">{day:%m.%d}</time><span class="title-period"> / </span><span class="title-sub">DAILY POST</span></h1><span class="weekday">{WEEKDAYS[day.weekday()]}</span></div>
         <div class="issue-metadata"><span>{_icon('book')}{len(report.items)} stories</span><span>About {_reading_minutes(report)} min read</span><span>Asia/Shanghai</span></div></header>
         {_overview(report)}
-        <div class="article-section-label"><span>Stories</span><span class="dateline-rule"></span><span>IN DETAIL</span></div>
-        <div class="articles">{articles or '<p class="empty-note">No detailed stories for this issue yet. Browse the archive for earlier issues.</p>'}</div>
+        {articles}
         <nav class="issue-pager" aria-label="Adjacent issues">{prev_link}{next_link}</nav>
-        <footer class="reading-footer"><a class="footer-brand" href="{prefix}index.html">AI DAILY POST</a><p>AI-curated · Original sources linked<br>Generated {_e(generated)}{'' if not generated else ' · Report dates use UTC+8'}</p></footer>
+        <footer class="reading-footer"><a class="footer-brand" href="{prefix}index.html">AI DAILY POST<span>Stay curious. Stay critical.</span></a><p>AI-curated · Original sources linked<br>Generated {_e(generated)}{'' if not generated else ' · Report dates use UTC+8'}</p></footer>
         {toc}<button class="back-to-top icon-button" data-back-top aria-label="Back to top" hidden>{_icon('up')}</button>
     </div>'''
 
@@ -207,10 +225,11 @@ def _archive_content(reports: list[DailyReport], prefix: str) -> str:
     entries = []
     for report in reports:
         day = date.fromisoformat(report.report_date)
-        excerpt = report.items[0].title if report.items else "No sufficiently reliable AI developments for this date"
-        searchable = " ".join([report.report_date] + [item.title + " " + item.summary for item in report.items])
-        entries.append(f'''<a class="archive-entry" href="{prefix}issues/{report.report_date}/" data-archive-entry data-search-text="{_e(searchable)}"><time datetime="{report.report_date}"><small>{day.year}</small>{day:%m.%d}</time><div><h2>AI Daily Post · {report.report_date}</h2><p>{_e(excerpt)}</p><span>{len(report.items)} stories · about {_reading_minutes(report)} min read</span></div><span class="archive-arrow">↗</span></a>''')
-    return f'''<div class="reading-shell archive-shell"><header class="issue-header"><div class="issue-dateline"><span>THE COLLECTION</span><span class="dateline-rule"></span><span>{len(reports):03d} ISSUES</span></div><h1 class="archive-title">Archive</h1></header>
+        ordered = _ordered_items(report)
+        excerpt = ordered[0].title if ordered else "No sufficiently reliable AI developments for this date"
+        searchable = " ".join([report.report_date, report.title] + [item.title + " " + item.summary for item in report.items])
+        entries.append(f'''<a class="archive-entry" href="{prefix}issues/{report.report_date}/" data-archive-entry data-search-text="{_e(searchable)}"><time datetime="{report.report_date}"><small>{day.year}</small>{day:%m.%d}</time><div><h2>{_e(report.title)}</h2><p>{_e(excerpt)}</p><span>{len(report.items)} stories · about {_reading_minutes(report)} min read</span></div><span class="archive-arrow">↗</span></a>''')
+    return f'''<div class="reading-shell archive-shell"><header class="issue-header"><div class="issue-dateline"><span>THE COLLECTION</span><span class="dateline-rule"></span><span>{len(reports):03d} ISSUES</span></div><h1 class="archive-title">Every day is worth revisiting.</h1><p class="issue-subtitle">Find the AI developments you missed.</p></header>
         <label class="archive-search">{_icon('search')}<input type="search" data-list-search placeholder="Search dates, titles or keywords…" aria-label="Search all issues"></label>
         <div class="archive-list">{"".join(entries) or '<p class="empty-note">The first issue has not been generated yet.</p>'}<p class="empty-note" data-list-empty hidden>No matching issues. Try another keyword.</p></div></div>'''
 
@@ -234,17 +253,19 @@ def _feed_datetime(report: DailyReport) -> datetime:
 
 def _feed_issue_html(report: DailyReport) -> str:
     blocks = []
-    for item in report.items:
+    for item in _ordered_items(report):
         sources = " ".join(
             f'<a href="{_e(source["url"])}">{_e(source["tier"])} · {_e(source["name"])}</a>'
             for source in item.sources if _safe_url(source["url"])
         )
+        if item.code_url and _safe_url(item.code_url):
+            sources = (sources + " " if sources else "") + f'<a href="{_e(item.code_url)}">Code repository</a>'
         summary = "".join(f"<p>{_e(line)}</p>" for line in item.summary.splitlines() if line.strip())
         comment = "".join(f"<p>{_e(line)}</p>" for line in item.comment.splitlines() if line.strip())
         comment = f"<blockquote><strong>Our take</strong>{comment}</blockquote>" if comment else ""
         source_line = f'<p class="sources">Sources: {sources}</p>' if sources else ""
         blocks.append(f'''<article>
-<p><em>{_e(category_label(item.category))} · {_e(item.time)}</em></p>
+<p><em>{_e(section_label(item.section))} · {_e(category_label(item.category))} · {_e(item.time)}</em></p>
 <h2>{_e(item.title)}</h2>{summary}{comment}{source_line}</article>''')
     return "".join(blocks) or "<p>No sufficiently reliable AI developments were found for this date.</p>"
 

@@ -143,6 +143,8 @@ def _rss_candidates(source: dict, target_date: date, limit: int = 40) -> list[Ca
                 published_at=published,
                 summary=_clean_text(entry.get("summary", "") or entry.get("description", "")),
                 topics=source.get("topics", []),
+                kind=source.get("kind", "news"),
+                weight=source.get("weight", 1),
             )
         )
     return result
@@ -182,6 +184,8 @@ def _webpage_candidates(source: dict, target_date: date, limit: int = 20) -> lis
                 url=url,
                 summary="",
                 topics=source.get("topics", []),
+                kind=source.get("kind", "news"),
+                weight=source.get("weight", 1),
             )
         )
         if len(candidates) >= limit:
@@ -189,26 +193,93 @@ def _webpage_candidates(source: dict, target_date: date, limit: int = 20) -> lis
     return candidates
 
 
+def _paper_candidates(source: dict, target_date: date, limit: int = 12) -> list[Candidate]:
+    """Fetch papers that ship a public code repository for the target day.
+
+    paperswithcode.com now redirects to Hugging Face Papers. The daily-papers API
+    keeps the original submission date, so papers can be filtered by report day
+    without relying on fragile article-page date markup.
+    """
+    api = source.get("api")
+    if not api:
+        return []
+    try:
+        response = requests.get(
+            api,
+            params={"date": target_date.isoformat()},
+            headers={"User-Agent": USER_AGENT},
+            timeout=TIMEOUT,
+        )
+        response.raise_for_status()
+        payload = response.json()
+    except (requests.RequestException, ValueError) as exc:
+        logger.warning("Paper source fetch failed %s: %s", source["name"], exc)
+        return []
+    if not isinstance(payload, list):
+        logger.warning("Paper source returned an invalid payload %s", source["name"])
+        return []
+    result: list[Candidate] = []
+    for entry in payload:
+        paper = entry.get("paper", entry) if isinstance(entry, dict) else {}
+        code_url = _clean_text(paper.get("githubRepo") or "")
+        if not code_url:
+            continue
+        paper_id = str(paper.get("id") or "").strip()
+        title = _clean_text(paper.get("title", ""))
+        if not paper_id or not title:
+            continue
+        published = _parse_datetime(paper.get("submittedOnDailyAt") or paper.get("publishedAt"))
+        summary = _clean_text(paper.get("summary", ""))
+        result.append(
+            Candidate(
+                source_name=source["name"],
+                tier=source["tier"],
+                source_url=source["url"],
+                title=title,
+                url=f"https://huggingface.co/papers/{paper_id}",
+                published_at=published,
+                summary=summary,
+                content=summary,
+                topics=source.get("topics", []),
+                kind=source.get("kind", "paper"),
+                code_url=code_url,
+                weight=source.get("weight", 1),
+            )
+        )
+        if len(result) >= limit:
+            break
+    logger.info("Paper source %s: %d papers with code", source["name"], len(result))
+    return result
+
+
 def enrich_candidates(candidates: list[Candidate], max_articles: int = 120) -> list[Candidate]:
     # Landing pages can expose many links. Bound and parallelize article requests so a
     # single slow source cannot consume the whole GitHub Actions job.
     # Round-robin sources so the first few configured sites cannot exhaust the
     # budget. Within each source, dated RSS entries come before undated links.
+    # Sources with a higher weight (such as papers) receive more slots per round.
     groups: dict[str, deque] = {}
+    weights: dict[str, int] = {}
     for candidate in sorted(candidates, key=lambda item: item.published_at is None):
         groups.setdefault(candidate.source_name, deque()).append(candidate)
+        weights[candidate.source_name] = max(weights.get(candidate.source_name, 1), candidate.weight)
     selected = []
     while len(selected) < max_articles and any(groups.values()):
-        for group in groups.values():
-            if group:
+        for name, group in groups.items():
+            for _ in range(max(1, weights.get(name, 1))):
+                if not group:
+                    break
                 selected.append(group.popleft())
                 if len(selected) == max_articles:
                     break
+            if len(selected) == max_articles:
+                break
     logger.info("Selected %d/%d candidates across %d sources: %s",
-                len(selected), len(candidates), len(groups),
+                len(groups), len(selected), len(candidates),
                 dict(Counter(candidate.source_name for candidate in selected)))
+    pending = [candidate for candidate in selected if not candidate.content]
     with ThreadPoolExecutor(max_workers=12) as executor:
-        futures = {executor.submit(fetch_page, candidate.url): candidate for candidate in selected}
+        futures = {executor.submit(fetch_page, candidate.url): candidate for candidate in pending}
         for future in as_completed(futures):
             candidate = futures[future]
             try:
@@ -224,9 +295,12 @@ def enrich_candidates(candidates: list[Candidate], max_articles: int = 120) -> l
 def collect_candidates(sources_path, target_date: date) -> list[Candidate]:
     candidates: list[Candidate] = []
     for source in load_sources(sources_path):
-        entries = _rss_candidates(source, target_date) if source.get("rss") else []
-        if not entries:
-            entries = _webpage_candidates(source, target_date)
+        if source.get("collection") == "papers":
+            entries = _paper_candidates(source, target_date, limit=int(source.get("limit", 12)))
+        else:
+            entries = _rss_candidates(source, target_date) if source.get("rss") else []
+            if not entries:
+                entries = _webpage_candidates(source, target_date)
         logger.info("Source %s: %d candidates", source["name"], len(entries))
         candidates.extend(entries)
     # URL/title de-duplication before expensive article fetches.

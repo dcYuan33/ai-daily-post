@@ -3,10 +3,11 @@ from __future__ import annotations
 import html
 import json
 import logging
+import os
 import re
 from collections import Counter, deque
 from concurrent.futures import ThreadPoolExecutor, as_completed
-from datetime import date, datetime, time
+from datetime import date, datetime, time, timedelta
 from email.utils import parsedate_to_datetime
 from urllib.parse import urljoin, urlsplit
 from zoneinfo import ZoneInfo
@@ -20,6 +21,7 @@ from .models import Candidate
 
 USER_AGENT = "ai-daily/0.1 (+https://github.com/)"
 TIMEOUT = 10
+GITHUB_API_URL = "https://api.github.com/repos"
 REPORT_TIMEZONE = ZoneInfo("Asia/Shanghai")
 logger = logging.getLogger(__name__)
 
@@ -136,7 +138,6 @@ def _rss_candidates(source: dict, target_date: date, limit: int = 40) -> list[Ca
         result.append(
             Candidate(
                 source_name=source["name"],
-                tier=source["tier"],
                 source_url=source["url"],
                 title=_clean_text(entry.get("title", "")),
                 url=url,
@@ -178,7 +179,6 @@ def _webpage_candidates(source: dict, target_date: date, limit: int = 20) -> lis
         candidates.append(
             Candidate(
                 source_name=source["name"],
-                tier=source["tier"],
                 source_url=source["url"],
                 title=title,
                 url=url,
@@ -233,7 +233,6 @@ def _paper_candidates(source: dict, target_date: date, limit: int = 12) -> list[
         result.append(
             Candidate(
                 source_name=source["name"],
-                tier=source["tier"],
                 source_url=source["url"],
                 title=title,
                 url=f"https://huggingface.co/papers/{paper_id}",
@@ -249,6 +248,102 @@ def _paper_candidates(source: dict, target_date: date, limit: int = 12) -> list[
         if len(result) >= limit:
             break
     logger.info("Paper source %s: %d papers with code", source["name"], len(result))
+    return result
+
+
+def _github_headers() -> dict[str, str]:
+    headers = {"User-Agent": USER_AGENT, "Accept": "application/vnd.github+json"}
+    token = os.getenv("GITHUB_TOKEN", "").strip()
+    if token:
+        headers["Authorization"] = f"Bearer {token}"
+    return headers
+
+
+def _github_trending_candidates(source: dict, target_date: date, limit: int = 8) -> list[Candidate]:
+    """Keep only recently created repositories from the GitHub Trending page.
+
+    GitHub Trending has no creation-date filter, so each trending repository is
+    checked through the public API. Established projects that occasionally trend
+    are excluded instead of being clustered into the Projects section.
+    """
+    try:
+        response = requests.get(
+            source["url"],
+            params={"since": source.get("since", "daily")},
+            headers={"User-Agent": USER_AGENT},
+            timeout=TIMEOUT,
+        )
+        response.raise_for_status()
+    except requests.RequestException as exc:
+        logger.warning("Trending source fetch failed %s: %s", source["name"], exc)
+        return []
+    soup = BeautifulSoup(response.text, "html.parser")
+    cutoff = target_date - timedelta(days=int(source.get("max_age_days", 90)))
+    headers = _github_headers()
+    result: list[Candidate] = []
+    for card in soup.select("article.Box-row"):
+        link = card.select_one("h2 a[href]")
+        if not link:
+            continue
+        repo_path = link.get("href", "").strip("/")
+        if not re.fullmatch(r"[^/]+/[^/]+", repo_path):
+            continue
+        card_text = _clean_text(card.get_text(" ", strip=True))
+        stars_today = ""
+        match = re.search(r"([\d,]+)\s+stars?\s+today", card_text)
+        if match:
+            stars_today = match.group(1)
+        try:
+            details = requests.get(
+                f"{GITHUB_API_URL}/{repo_path}",
+                headers=headers,
+                timeout=TIMEOUT,
+            )
+            details.raise_for_status()
+            repo = details.json()
+        except (requests.RequestException, ValueError) as exc:
+            logger.warning("GitHub repository lookup failed %s: %s", repo_path, exc)
+            continue
+        if not isinstance(repo, dict):
+            continue
+        created = _parse_datetime(repo.get("created_at"))
+        if not created or created.date() < cutoff or created.date() > target_date:
+            continue
+        if repo.get("archived") or repo.get("fork"):
+            continue
+        description_node = card.select_one("p")
+        description = _clean_text(
+            (description_node.get_text(" ", strip=True) if description_node else "")
+            or repo.get("description", "")
+        )
+        stars = int(repo.get("stargazers_count") or 0)
+        summary_parts = [f"New GitHub repository trending on {target_date.isoformat()}."]
+        if description:
+            summary_parts.append(description)
+        stars_text = f"Created {created.date().isoformat()}; {stars:,} stars in total"
+        if stars_today:
+            stars_text += f", {stars_today} stars today"
+        summary_parts.append(stars_text + ".")
+        summary = " ".join(summary_parts)
+        topics = list(source.get("topics", []))
+        topics.extend(str(topic) for topic in (repo.get("topics") or [])[:6] if topic)
+        result.append(
+            Candidate(
+                source_name=source["name"],
+                source_url=source["url"],
+                title=repo_path,
+                url=repo.get("html_url") or f"https://github.com/{repo_path}",
+                published_at=datetime.combine(target_date, time.min),
+                summary=summary,
+                content=summary,
+                topics=topics,
+                kind=source.get("kind", "project"),
+                weight=source.get("weight", 1),
+            )
+        )
+        if len(result) >= limit:
+            break
+    logger.info("Trending source %s: %d new repositories", source["name"], len(result))
     return result
 
 
@@ -297,6 +392,8 @@ def collect_candidates(sources_path, target_date: date) -> list[Candidate]:
     for source in load_sources(sources_path):
         if source.get("collection") == "papers":
             entries = _paper_candidates(source, target_date, limit=int(source.get("limit", 12)))
+        elif source.get("collection") == "trending":
+            entries = _github_trending_candidates(source, target_date, limit=int(source.get("limit", 8)))
         else:
             entries = _rss_candidates(source, target_date) if source.get("rss") else []
             if not entries:

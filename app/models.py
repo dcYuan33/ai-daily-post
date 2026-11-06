@@ -8,7 +8,6 @@ from typing import Any
 @dataclass
 class Candidate:
     source_name: str
-    tier: str
     source_url: str
     title: str
     url: str
@@ -23,7 +22,6 @@ class Candidate:
     def as_prompt_dict(self) -> dict[str, Any]:
         return {
             "source_name": self.source_name,
-            "tier": self.tier,
             "source_url": self.source_url,
             "title": self.title,
             "url": self.url,

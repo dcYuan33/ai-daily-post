@@ -6,6 +6,7 @@ from datetime import date
 from pathlib import Path
 from zoneinfo import ZoneInfo
 
+from app.collect import load_sources
 from app.llm import _section_for
 from app.main import resolve_report_date
 from app.models import DailyReport, ReportItem
@@ -32,7 +33,7 @@ class CoreTests(unittest.TestCase):
                 time="2026-10-05",
                 category="Models & Research",
                 summary="This is a test summary.",
-                sources=[{"name": "OpenAI News", "tier": "A", "url": "https://example.com/news"}],
+                sources=[{"name": "OpenAI News", "url": "https://example.com/news"}],
             )],
         )
         output = render_markdown(report)
@@ -40,14 +41,25 @@ class CoreTests(unittest.TestCase):
         self.assertIn("## News", output)
         self.assertIn("Models & Research", output)
         self.assertIn("Test story", output)
-        self.assertIn("OpenAI News (A)", output)
-        self.assertIn("https://example.com/news", output)
+        self.assertIn("[OpenAI News](https://example.com/news)", output)
+        self.assertNotIn("OpenAI News (A)", output)
 
     def test_section_is_derived_from_source_kind(self):
         self.assertEqual(_section_for({"news"}), "news")
-        self.assertEqual(_section_for({"article", "news"}), "article")
-        self.assertEqual(_section_for({"paper", "article"}), "paper")
+        self.assertEqual(_section_for({"article"}), "news")
+        self.assertEqual(_section_for({"paper", "news"}), "paper")
+        self.assertEqual(_section_for({"project", "paper"}), "project")
         self.assertEqual(_section_for(set()), "news")
+
+    def test_sources_config_has_three_kinds_and_no_tier(self):
+        sources = load_sources(Path(__file__).resolve().parent.parent / "config/sources.yaml")
+        self.assertEqual({source["kind"] for source in sources}, {"news", "paper", "project"})
+        self.assertFalse(any("tier" in source for source in sources))
+        self.assertEqual([source["name"] for source in sources if source["kind"] == "paper"], ["Papers With Code"])
+        self.assertEqual([source["name"] for source in sources if source["kind"] == "project"], ["GitHub Trending"])
+        news_names = [source["name"] for source in sources if source["kind"] == "news"]
+        for name in ("OpenAI News", "Anthropic News", "Hugging Face Blog", "Simon Willison's Weblog"):
+            self.assertIn(name, news_names)
 
     def test_build_site(self):
         report = DailyReport(
@@ -59,7 +71,7 @@ class CoreTests(unittest.TestCase):
                 time="2026-10-06",
                 category="Models & Research",
                 summary="This is a test summary.",
-                sources=[{"name": "OpenAI News", "tier": "A", "url": "https://example.com/news"}],
+                sources=[{"name": "OpenAI News", "url": "https://example.com/news"}],
             )],
         )
         with tempfile.TemporaryDirectory() as directory:
@@ -78,8 +90,8 @@ class CoreTests(unittest.TestCase):
                 title="<script>alert(1)</script>", time="2026-10-06", category="Test",
                 summary="Summary <b>must not be treated as HTML</b>",
                 sources=[
-                    {"name": "Malicious", "tier": "A", "url": "javascript:alert(1)"},
-                    {"name": "Safe source", "tier": "B", "url": "https://example.com"},
+                    {"name": "Malicious", "url": "javascript:alert(1)"},
+                    {"name": "Safe source", "url": "https://example.com"},
                 ],
             )],
         )
@@ -98,8 +110,8 @@ class CoreTests(unittest.TestCase):
                 title="Test story", time="2026-10-06", category="Models & Research",
                 summary="This is a test summary.", comment="This is a test comment.",
                 sources=[
-                    {"name": "Safe source", "tier": "A", "url": "https://example.com/news"},
-                    {"name": "Malicious", "tier": "B", "url": "javascript:alert(1)"},
+                    {"name": "Safe source", "url": "https://example.com/news"},
+                    {"name": "Malicious", "url": "javascript:alert(1)"},
                 ],
             )],
         )
@@ -151,38 +163,48 @@ class CoreTests(unittest.TestCase):
             self.assertIn("issues/2026-10-06/", (root / "site/issues/2026-10-07/index.html").read_text(encoding="utf-8"))
             self.assertEqual(original, (root / "site/issues/2026-10-06/data.json").read_text(encoding="utf-8"))
 
-    def test_sections_group_news_articles_and_papers(self):
+    def test_sections_group_news_papers_and_projects(self):
         report = DailyReport(
             "AI Daily | 2026-10-06", "2026-10-06", "2026-10-07T09:17:00+08:00",
             [
                 ReportItem(
                     title="News item", time="2026-10-06", category="Models & Research",
                     summary="News summary.", section="news",
-                    sources=[{"name": "OpenAI News", "tier": "A", "url": "https://example.com/news"}],
+                    sources=[{"name": "OpenAI News", "url": "https://example.com/news"}],
                 ),
                 ReportItem(
-                    title="Article item", time="2026-10-06", category="Models & Research",
-                    summary="Article summary.", section="article",
-                    sources=[{"name": "Anthropic News", "tier": "A", "url": "https://example.com/article"}],
+                    title="Legacy article item", time="2026-10-06", category="Models & Research",
+                    summary="Legacy article summary.", section="article",
+                    sources=[{"name": "Anthropic News", "url": "https://example.com/article"}],
                 ),
                 ReportItem(
                     title="Paper item", time="2026-10-06", category="Models & Research",
                     summary="Paper summary.", section="paper", code_url="https://github.com/example/code",
-                    sources=[{"name": "Papers With Code", "tier": "A", "url": "https://example.com/paper"}],
+                    sources=[{"name": "Papers With Code", "url": "https://example.com/paper"}],
+                ),
+                ReportItem(
+                    title="Project item", time="2026-10-06", category="Open Source Ecosystem",
+                    summary="Project summary.", section="project",
+                    sources=[{"name": "GitHub Trending", "url": "https://github.com/example/project"}],
                 ),
             ],
         )
         output = render_markdown(report)
-        positions = [output.index("## News"), output.index("## Articles"), output.index("## Papers")]
+        positions = [output.index("## News"), output.index("## Papers"), output.index("## Projects")]
         self.assertEqual(positions, sorted(positions))
+        self.assertNotIn("## Articles", output)
+        self.assertLess(output.index("Legacy article item"), output.index("## Papers"))
         self.assertIn("- Code: https://github.com/example/code", output)
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
             build_site(report, root)
             page = (root / "site/index.html").read_text(encoding="utf-8")
-            for section in ("news", "article", "paper"):
+            for section in ("news", "paper", "project"):
                 self.assertIn(f'id="section-{section}"', page)
+            self.assertNotIn('id="section-article"', page)
+            self.assertIn("Legacy article item", page)
             self.assertIn('href="https://github.com/example/code"', page)
+            self.assertIn('href="https://github.com/example/project"', page)
 
     def test_save_report(self):
         report = DailyReport("AI Daily | 2026-10-05", "2026-10-05", "now", [])

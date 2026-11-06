@@ -11,7 +11,7 @@ except ImportError:  # Keeps date/config unit tests runnable before dependencies
 from .labels import category_label, section_key, section_label
 from .models import DailyReport
 
-SECTION_ORDER = ("news", "article", "paper")
+SECTION_ORDER = ("news", "paper", "project")
 
 
 def render_markdown(report: DailyReport) -> str:
@@ -44,7 +44,7 @@ def render_markdown(report: DailyReport) -> str:
             if item.code_url:
                 lines.append(f"- Code: {item.code_url}")
             source_text = "; ".join(
-                f"[{source['name']} ({source['tier']})]({source['url']})" for source in item.sources
+                f"[{source['name']}]({source['url']})" for source in item.sources
             )
             lines.extend([f"- Sources: {source_text}", ""])
     return "\n".join(lines).rstrip() + "\n"

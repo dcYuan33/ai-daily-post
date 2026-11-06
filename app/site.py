@@ -19,10 +19,10 @@ from .models import DailyReport, ReportItem
 ASSETS = Path(__file__).parent / "assets"
 SITE_URL = "https://dcyuan33.github.io/ai-daily-post/"
 SITE_TITLE = "AI Daily Post"
-SITE_DESCRIPTION = "Daily AI news, articles, and code-backed papers curated from A/B/C sources."
+SITE_DESCRIPTION = "Daily AI news, code-backed papers, and new trending projects curated from original sources."
 REPORT_TIMEZONE = ZoneInfo("Asia/Shanghai")
 FEED_LIMIT = 50
-SECTION_ORDER = ("news", "article", "paper")
+SECTION_ORDER = ("news", "paper", "project")
 MONTHS = ("January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December")
 THEMES = (("editorial", "Classic", "#faf8f5", "#c44b2b"), ("mono", "Minimal", "#ffffff", "#111111"), ("dune", "Dune", "#faf6f0", "#b57b31"), ("blueprint", "Blueprint", "#f8faff", "#2563eb"), ("ink", "Ink", "#191714", "#ee8866"))
 ICONS = {
@@ -104,7 +104,7 @@ def _sidebar(reports: list[DailyReport], prefix: str, current: str, archive: boo
         <label class="sidebar-search">{_icon('search')}<input type="search" data-archive-search placeholder="Search dates or keywords" aria-label="Search dates or keywords" autocomplete="off"></label>
         <div class="date-list">{"".join(groups) or '<p class="sidebar-empty">Waiting for the first issue</p>'}<p class="sidebar-empty" data-search-empty hidden>No matching issues</p></div>
         <a class="all-issues{' active' if archive else ''}" href="{prefix}archive.html">All issues <span>{len(reports)}</span></a>
-        <div class="sidebar-footer"><span class="live-dot"></span> Updated daily · UTC+8<br><small>A/B/C sources · AI-curated</small></div>
+        <div class="sidebar-footer"><span class="live-dot"></span> Updated daily · UTC+8<br><small>News · Papers · Projects</small></div>
     </aside>'''
 
 
@@ -156,7 +156,7 @@ def _overview(report: DailyReport) -> str:
         groups.append(f'<section class="overview-group"><h3>{_e(section_label(section))} <span>{len(items)}</span></h3><ul>{links}</ul></section>')
     if not groups:
         groups.append('<p class="empty-note">No sufficiently reliable AI developments were found for this date. Quality over quantity.</p>')
-    return f'<section class="overview" aria-labelledby="overview-title"><div class="section-kicker"><h2 id="overview-title">In This Issue</h2><span>NEWS · ARTICLES · PAPERS</span></div>{"".join(groups)}</section>'
+    return f'<section class="overview" aria-labelledby="overview-title"><div class="section-kicker"><h2 id="overview-title">In This Issue</h2><span>NEWS · PAPERS · PROJECTS</span></div>{"".join(groups)}</section>'
 
 
 def _safe_url(url: str) -> bool:
@@ -172,9 +172,9 @@ def _paragraphs(text: str) -> str:
 
 
 def _article_item(index: int, item: ReportItem) -> str:
-    sources = "".join(f'<a class="source-link" href="{_e(source["url"])}" target="_blank" rel="noopener noreferrer"><span class="source-tier">{_e(source["tier"])}</span>{_e(source["name"])}{_icon("external")}</a>' for source in item.sources if _safe_url(source["url"]))
+    sources = "".join(f'<a class="source-link" href="{_e(source["url"])}" target="_blank" rel="noopener noreferrer">{_e(source["name"])}{_icon("external")}</a>' for source in item.sources if _safe_url(source["url"]))
     if item.code_url and _safe_url(item.code_url):
-        sources += f'<a class="source-link code-link" href="{_e(item.code_url)}" target="_blank" rel="noopener noreferrer"><span class="source-tier">CODE</span>Code repository{_icon("external")}</a>'
+        sources += f'<a class="source-link code-link" href="{_e(item.code_url)}" target="_blank" rel="noopener noreferrer"><span class="source-badge">CODE</span>Code repository{_icon("external")}</a>'
     comment = f'<aside class="comment"><span class="comment-label">COMMENT / OUR TAKE</span>{_paragraphs(item.comment)}</aside>' if item.comment else ""
     return f'''<article class="article-item" id="item-{index}" data-article>
         <div class="article-meta"><span class="item-tag">#{index:02d}</span><span>{_e(category_label(item.category))}</span><span class="meta-dot">·</span><span>{_e(item.time)}</span></div>
@@ -255,7 +255,7 @@ def _feed_issue_html(report: DailyReport) -> str:
     blocks = []
     for item in _ordered_items(report):
         sources = " ".join(
-            f'<a href="{_e(source["url"])}">{_e(source["tier"])} · {_e(source["name"])}</a>'
+            f'<a href="{_e(source["url"])}">{_e(source["name"])}</a>'
             for source in item.sources if _safe_url(source["url"])
         )
         if item.code_url and _safe_url(item.code_url):

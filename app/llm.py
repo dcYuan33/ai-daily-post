@@ -20,10 +20,10 @@ def _extract_json(text: str) -> dict:
 
 
 def _section_for(section_kinds: set[str]) -> str:
+    if "project" in section_kinds:
+        return "project"
     if "paper" in section_kinds:
         return "paper"
-    if "article" in section_kinds:
-        return "article"
     return "news"
 
 
@@ -60,24 +60,24 @@ def generate_report(settings, target_date: date, candidates: list[Candidate]) ->
     for candidate in candidates:
         meta = {
             "name": candidate.source_name,
-            "tier": candidate.tier,
             "url": candidate.url,
             "kind": candidate.kind,
             "code_url": candidate.code_url,
         }
         if candidate.url:
             allowed_sources[candidate.url] = meta
-        if candidate.source_url:
+        if candidate.source_url and candidate.kind != "project":
             # The source homepage is a fallback citation; do not let papers from the
-            # same source overwrite each other's code_url.
+            # same source overwrite each other's code_url. Projects must cite the
+            # repository URL so each trending project keeps its own link.
             allowed_sources.setdefault(
                 candidate.source_url,
                 {**meta, "url": candidate.source_url, "code_url": ""},
             )
     items = []
     for raw in parsed.get("items", []):
-        # Never trust an LLM-invented URL or tier. Only retain URLs present in the
-        # fetched candidate set, and use the collector's source metadata.
+        # Never trust an LLM-invented URL or source metadata. Only retain URLs
+        # present in the fetched candidate set, and use the collector's metadata.
         matched = [
             allowed_sources[source["url"]]
             for source in raw.get("sources", [])
@@ -85,11 +85,16 @@ def generate_report(settings, target_date: date, candidates: list[Candidate]) ->
         ]
         if not raw.get("title") or not raw.get("summary") or not matched:
             continue
+        section = _section_for({source["kind"] for source in matched})
+        # A section may cite only sources of its own kind. In particular, Projects
+        # may cite only GitHub Trending, and Papers may cite only Papers With Code.
+        matched = [source for source in matched if source["kind"] == section]
+        if not matched:
+            continue
         sources = [
-            {"name": source["name"], "tier": source["tier"], "url": source["url"]}
+            {"name": source["name"], "url": source["url"]}
             for source in matched
         ]
-        section = _section_for({source["kind"] for source in matched})
         code_url = next((source["code_url"] for source in matched if source["code_url"]), "")
         items.append(
             ReportItem(

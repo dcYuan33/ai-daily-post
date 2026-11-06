@@ -13,24 +13,32 @@ CATEGORY_LABELS = {
 
 SECTION_LABELS = {
     "news": "News",
-    "article": "Articles",
     "paper": "Papers",
+    "project": "Projects",
     "News": "News",
-    "Article": "Articles",
     "Paper": "Papers",
-    "Articles": "Articles",
+    "Project": "Projects",
     "Papers": "Papers",
+    "Projects": "Projects",
+    # Legacy issues: the Articles section was merged into News.
+    "article": "News",
+    "Article": "News",
+    "Articles": "News",
 }
 
 SECTION_KEYS = {
     "news": "news",
-    "article": "article",
     "paper": "paper",
+    "project": "project",
     "News": "news",
-    "Article": "article",
     "Paper": "paper",
-    "Articles": "article",
+    "Project": "project",
     "Papers": "paper",
+    "Projects": "project",
+    # Legacy issues: the Articles section was merged into News.
+    "article": "news",
+    "Article": "news",
+    "Articles": "news",
 }
 
 WEEKDAYS = ("Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday")

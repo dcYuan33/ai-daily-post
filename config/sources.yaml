@@ -16,7 +16,6 @@ sources:
   - {name: Apple Machine Learning Research, tier: A, url: https://machinelearning.apple.com/, rss: https://machinelearning.apple.com/rss.xml, collection: rss, kind: article, topics: [research, model, product]}
   - {name: Berkeley BAIR Blog, tier: A, url: https://bair.berkeley.edu/blog/, rss: https://bair.berkeley.edu/blog/feed.xml, collection: rss, kind: article, topics: [research, model, robotics]}
   - {name: The Gradient, tier: A, url: https://thegradient.pub/, rss: https://thegradient.pub/rss/, collection: rss, kind: article, topics: [research, analysis, society]}
-  - {name: Lil'Log, tier: A, url: https://lilianweng.github.io/, rss: https://lilianweng.github.io/index.xml, collection: rss, kind: article, topics: [research, model, engineering]}
 
   # Papers: keep only code-backed papers; weight is higher than ordinary sources
   - {name: Papers With Code, tier: A, url: https://huggingface.co/papers, api: https://huggingface.co/api/daily_papers, collection: papers, kind: paper, weight: 4, limit: 12, topics: [research, paper, code, open-source]}

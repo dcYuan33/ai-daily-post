@@ -1,13 +1,16 @@
+import io
 import json
 import tempfile
 import unittest
+import urllib.error
 import xml.etree.ElementTree as ET
 from datetime import date
 from pathlib import Path
+from unittest.mock import patch
 from zoneinfo import ZoneInfo
 
 from app.collect import load_sources
-from app.llm import _section_for
+from app.llm import MAX_ATTEMPTS, _post_completion, _section_for
 from app.main import resolve_report_date
 from app.models import DailyReport, ReportItem
 from app.render import render_markdown, save_report
@@ -18,10 +21,57 @@ class FakeSettings:
     timezone = ZoneInfo("Asia/Shanghai")
 
 
+class FakeResponse:
+    def __init__(self, payload: dict):
+        self.payload = payload
+
+    def read(self) -> bytes:
+        return json.dumps(self.payload).encode("utf-8")
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *args) -> bool:
+        return False
+
+
+def http_error(code: int, body: bytes = b'{"error":"upstream"}') -> urllib.error.HTTPError:
+    return urllib.error.HTTPError(
+        "https://example.com/v1/chat/completions", code, "error", {}, io.BytesIO(body)
+    )
+
+
 class CoreTests(unittest.TestCase):
     def test_default_report_date_is_previous_local_day(self):
         # Explicit dates are stable and do not depend on the machine clock.
         self.assertEqual(resolve_report_date(FakeSettings(), "2026-10-05"), date(2026, 10, 5))
+
+    def test_completion_retries_transient_http_errors(self):
+        responses = [
+            http_error(500),
+            http_error(503),
+            FakeResponse({"choices": [{"message": {"content": "{}"}}]}),
+        ]
+        with patch("app.llm.urllib.request.urlopen", side_effect=responses), \
+                patch("app.llm.time.sleep") as sleep:
+            result = _post_completion("https://example.com/v1/chat/completions", {}, b"{}")
+        self.assertEqual(result["choices"][0]["message"]["content"], "{}")
+        self.assertEqual([call.args[0] for call in sleep.call_args_list], [5.0, 10.0])
+
+    def test_completion_does_not_retry_client_errors(self):
+        with patch("app.llm.urllib.request.urlopen", side_effect=http_error(401)), \
+                patch("app.llm.time.sleep") as sleep:
+            with self.assertRaisesRegex(RuntimeError, "HTTP 401"):
+                _post_completion("https://example.com/v1/chat/completions", {}, b"{}")
+        sleep.assert_not_called()
+
+    def test_completion_gives_up_after_max_attempts(self):
+        with patch(
+            "app.llm.urllib.request.urlopen",
+            side_effect=[http_error(500) for _ in range(MAX_ATTEMPTS)],
+        ), patch("app.llm.time.sleep"):
+            with self.assertRaisesRegex(RuntimeError, "HTTP 500"):
+                _post_completion("https://example.com/v1/chat/completions", {}, b"{}")
 
     def test_markdown_contains_sources(self):
         report = DailyReport(

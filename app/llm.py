@@ -73,8 +73,6 @@ def _extract_json(text: str) -> dict:
 
 
 def _section_for(section_kinds: set[str]) -> str:
-    if "project" in section_kinds:
-        return "project"
     if "paper" in section_kinds:
         return "paper"
     return "news"
@@ -117,10 +115,9 @@ def generate_report(settings, target_date: date, candidates: list[Candidate]) ->
         }
         if candidate.url:
             allowed_sources[candidate.url] = meta
-        if candidate.source_url and candidate.kind != "project":
+        if candidate.source_url:
             # The source homepage is a fallback citation; do not let papers from the
-            # same source overwrite each other's code_url. Projects must cite the
-            # repository URL so each trending project keeps its own link.
+            # same source overwrite each other's code_url.
             allowed_sources.setdefault(
                 candidate.source_url,
                 {**meta, "url": candidate.source_url, "code_url": ""},
@@ -137,8 +134,8 @@ def generate_report(settings, target_date: date, candidates: list[Candidate]) ->
         if not raw.get("title") or not raw.get("summary") or not matched:
             continue
         section = _section_for({source["kind"] for source in matched})
-        # A section may cite only sources of its own kind. In particular, Projects
-        # may cite only GitHub Trending, and Papers may cite only Papers With Code.
+        # A section may cite only sources of its own kind. Papers may cite only
+        # Papers With Code.
         matched = [source for source in matched if source["kind"] == section]
         if not matched:
             continue

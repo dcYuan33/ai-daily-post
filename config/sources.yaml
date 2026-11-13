@@ -1,8 +1,7 @@
-# Sources are grouped into three kinds: news, paper, and project.
+# Sources are grouped into two kinds: news and paper.
 # News includes reporting, official blogs, research blogs, and in-depth analysis.
 # RSS/API is preferred; webpage entries are candidates and require article-page verification.
 # Paper sources only keep papers with a public code repository.
-# Project sources only keep new repositories trending on GitHub.
 sources:
   # News
   - {name: The Guardian AI, url: https://www.theguardian.com/technology/artificialintelligenceai, rss: https://www.theguardian.com/technology/artificialintelligenceai/rss, collection: rss, kind: news, topics: [policy, society, copyright]}
@@ -18,6 +17,3 @@ sources:
 
   # Papers: keep only code-backed papers; weight is higher than ordinary sources
   - {name: Papers With Code, url: https://huggingface.co/papers, api: https://huggingface.co/api/daily_papers, collection: papers, kind: paper, weight: 4, limit: 12, topics: [research, paper, code, open-source]}
-
-  # Projects: only new repositories trending on GitHub (created within max_age_days)
-  - {name: GitHub Trending, url: https://github.com/trending, collection: trending, kind: project, since: daily, max_age_days: 90, limit: 8, topics: [ai, project, open-source, developer]}

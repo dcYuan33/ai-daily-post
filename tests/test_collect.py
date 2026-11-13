@@ -5,7 +5,6 @@ from unittest.mock import Mock, patch
 from bs4 import BeautifulSoup
 
 from app.collect import (
-    _github_trending_candidates,
     _local_date,
     _page_date,
     _paper_candidates,
@@ -94,51 +93,6 @@ class CollectionTests(unittest.TestCase):
         self.assertEqual(entries[0].kind, "paper")
         self.assertEqual(entries[0].weight, 4)
         self.assertEqual(entries[0].published_at.date(), date(2026, 11, 5))
-
-    @patch("app.collect.requests.get")
-    def test_github_trending_keeps_only_new_repositories(self, get):
-        trending_page = Mock(text='''
-            <article class="Box-row">
-              <h2><a href="/new/project">new / project</a></h2>
-              <p>New agent project.</p>
-              <div class="f6">Python 1,234 stars today</div>
-            </article>
-            <article class="Box-row">
-              <h2><a href="/old/project">old / project</a></h2>
-              <p>Old established project.</p>
-              <div class="f6">Python 99,999 stars today</div>
-            </article>''')
-        new_repo = Mock()
-        new_repo.json.return_value = {
-            "html_url": "https://github.com/new/project",
-            "description": "New agent project.",
-            "created_at": "2026-09-01T00:00:00Z",
-            "stargazers_count": 1234,
-            "topics": ["agents"],
-            "archived": False,
-            "fork": False,
-        }
-        old_repo = Mock()
-        old_repo.json.return_value = {
-            "html_url": "https://github.com/old/project",
-            "description": "Old established project.",
-            "created_at": "2023-01-01T00:00:00Z",
-            "stargazers_count": 99999,
-            "archived": False,
-            "fork": False,
-        }
-        get.side_effect = [trending_page, new_repo, old_repo]
-        source = {
-            "name": "GitHub Trending", "url": "https://github.com/trending",
-            "collection": "trending", "kind": "project", "since": "daily",
-            "max_age_days": 90, "limit": 8,
-        }
-        entries = _github_trending_candidates(source, date(2026, 11, 5))
-        self.assertEqual([entry.title for entry in entries], ["new/project"])
-        self.assertEqual(entries[0].kind, "project")
-        self.assertEqual(entries[0].url, "https://github.com/new/project")
-        self.assertEqual(entries[0].published_at.date(), date(2026, 11, 5))
-        self.assertIn("1,234 stars today", entries[0].summary)
 
     def test_candidate_prompt_dict_has_no_tier(self):
         candidate = Candidate("Test", "https://example.com/", "Title", "https://example.com/a")

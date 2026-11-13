@@ -14,12 +14,9 @@ CATEGORY_LABELS = {
 SECTION_LABELS = {
     "news": "News",
     "paper": "Papers",
-    "project": "Projects",
     "News": "News",
     "Paper": "Papers",
-    "Project": "Projects",
     "Papers": "Papers",
-    "Projects": "Projects",
     # Legacy issues: the Articles section was merged into News.
     "article": "News",
     "Article": "News",
@@ -29,12 +26,9 @@ SECTION_LABELS = {
 SECTION_KEYS = {
     "news": "news",
     "paper": "paper",
-    "project": "project",
     "News": "news",
     "Paper": "paper",
-    "Project": "project",
     "Papers": "paper",
-    "Projects": "project",
     # Legacy issues: the Articles section was merged into News.
     "article": "news",
     "Article": "news",

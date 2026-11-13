@@ -11,7 +11,7 @@ except ImportError:  # Keeps date/config unit tests runnable before dependencies
 from .labels import category_label, section_key, section_label
 from .models import DailyReport
 
-SECTION_ORDER = ("news", "paper", "project")
+SECTION_ORDER = ("news", "paper")
 
 
 def render_markdown(report: DailyReport) -> str:

@@ -3,9 +3,8 @@
 ## Features
 
 - Collects AI news for the previous calendar day and generates an English daily report;
-- Sources are configured in `config/sources.yaml` and grouped into three kinds: news, paper, and project;
-- Reports are split into **News / Papers / Projects**: news, official blogs, and in-depth analysis go in News, Papers With Code goes in Papers, and new GitHub trending repositories go in Projects;
-- Projects only include repositories created within the last 90 days, so old projects are not clustered into the section;
+- Sources are configured in `config/sources.yaml` and grouped into two kinds: news and paper;
+- Reports are split into **News / Papers**: news, official blogs, and in-depth analysis go in News, and Papers With Code goes in Papers;
 - RSS/API first, with webpage sections as candidates and article pages as verification input;
 - Generates Markdown and HTML;
 - GitHub Pages: the homepage shows the latest full issue, with date archives, full-text search, table of contents, reading progress, and multiple reading themes;
@@ -41,18 +40,16 @@ Then open `http://localhost:8000`.
 
 ## Coverage and diagnostics
 
-- Sources are grouped into three kinds in `config/sources.yaml`: news, paper, and project. RSS/API feeds are preferred when available.
-- Reports have three sections:
+- Sources are grouped into two kinds in `config/sources.yaml`: news and paper. RSS/API feeds are preferred when available.
+- Reports have two sections:
   - **News**: items from `kind: news` sources, including OpenAI News, Anthropic News, Hugging Face Blog, and Simon Willison's Weblog;
-  - **Papers**: items from Papers With Code only. Every paper has a public code repository. The paper source has a higher weight (`weight: 4`) and collects up to 12 papers per day. `paperswithcode.com` now redirects to Hugging Face Papers, so collection uses its daily-papers API and keeps only entries with a non-empty `githubRepo`;
-  - **Projects**: items from GitHub Trending only. Collection keeps repositories created within the last 90 days (`max_age_days: 90`) and drops established projects that briefly trend. Each project is a separate item; projects are never clustered.
+  - **Papers**: items from Papers With Code only. Every paper has a public code repository. The paper source has a higher weight (`weight: 4`) and collects up to 12 papers per day. `paperswithcode.com` now redirects to Hugging Face Papers, so collection uses its daily-papers API and keeps only entries with a non-empty `githubRepo`.
 - The former Articles section was removed: its sources now publish as news, and archived issues that used that section render those items under News.
-- Include major news as well as verifiable feature updates, small tools, open-source work, and expert analysis. When evidence supports it, target 10–18 news items, 6–12 papers, and 3–8 projects, with a maximum of 34 items. There is no minimum: never pad with old news.
+- Include major news as well as verifiable feature updates, small tools, open-source work, and expert analysis. When evidence supports it, target 10–18 news items and 6–12 papers, with a maximum of 30 items. There is no minimum: never pad with old news.
 - Sources are no longer ranked by tier. The report section comes from the source kind, and every source URL is retained from the collected candidate set.
-- The page-fetch budget is 120. Sources are polled in round-robin order, and the paper source receives extra slots by weight. Each fetched excerpt is capped at 3000 characters to control AI input size. GitHub Trending candidates already carry their description and star counts, so they do not consume page requests.
+- The page-fetch budget is 120. Sources are polled in round-robin order, and the paper source receives extra slots by weight. Each fetched excerpt is capped at 3000 characters to control AI input size.
 - Logs show per-source candidate counts, request failures, dated candidates for the target day, available article text, and the final item count.
-- Sources used fewer than 10 times across the existing 29 issues were removed, except for Papers With Code, GitHub Trending, and Anthropic News. Papers With Code and GitHub Trending are the only sources for their sections; Anthropic News is retained because the official Anthropic and OpenAI blogs are required in News.
-- Set `GITHUB_TOKEN` to raise the GitHub API rate limit used to check repository creation dates. The token needs no scopes for public repositories.
+- Sources used fewer than 10 times across the existing issues were removed, except for Papers With Code and Anthropic News. Papers With Code is the only source for Papers; Anthropic News is retained because the official Anthropic and OpenAI blogs are required in News.
 
 In the Actions list, `Deploy Pages · existing reports only` only redeploys existing content; `Generate AI daily report` collects, generates, and deploys a new issue. Even when there is no reliable news that day, the full generation flow publishes an empty issue for that date instead of leaving the old date on the homepage.
 

@@ -55,7 +55,6 @@ jobs:
           AI_API_KEY: ${{ secrets.AI_API_KEY }}
           AI_BASE_URL: ${{ secrets.AI_BASE_URL }}
           AI_MODEL: ${{ secrets.AI_MODEL }}
-          GITHUB_TOKEN: ${{ github.token }}
           REPORT_TIMEZONE: Asia/Shanghai
           REPORT_DATE: ${{ inputs.report_date }}
         run: uv run --locked python -m app
